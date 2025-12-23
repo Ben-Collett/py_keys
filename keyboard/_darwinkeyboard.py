@@ -2,19 +2,18 @@ import ctypes
 import ctypes.util
 import Quartz
 import time
-import os
-import threading
 from AppKit import NSEvent
-from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
+from ._keyboard_event import KeyboardEvent
 from ._canonical_names import normalize_name
 from collections import defaultdict
 
-try: # Python 2/3 compatibility
+try:  # Python 2/3 compatibility
     unichr
 except NameError:
     unichr = chr
 
 Carbon = ctypes.cdll.LoadLibrary(ctypes.util.find_library('Carbon'))
+
 
 class KeyMap(object):
     non_layout_keys = dict((vk, normalize_name(name)) for vk, name in {
@@ -69,6 +68,7 @@ class KeyMap(object):
         0x7e: 'up',
     }.items())
     layout_specific_keys = {}
+
     def __init__(self):
         # Virtual key codes are usually the same for any given key, unless you have a different
         # keyboard layout. The only way I've found to determine the layout relies on (supposedly
@@ -89,7 +89,8 @@ class KeyMap(object):
             _fields_ = [('loc', CFIndex),
                         ('len', CFIndex)]
 
-        kTISPropertyUnicodeKeyLayoutData = ctypes.c_void_p.in_dll(Carbon, 'kTISPropertyUnicodeKeyLayoutData')
+        kTISPropertyUnicodeKeyLayoutData = ctypes.c_void_p.in_dll(
+            Carbon, 'kTISPropertyUnicodeKeyLayoutData')
         shiftKey = 0x0200
         alphaKey = 0x0400
         optionKey = 0x0800
@@ -98,7 +99,7 @@ class KeyMap(object):
         kUCKeyTranslateNoDeadKeysBit = 0
 
         # Set up function calls:
-        Carbon.CFDataGetBytes.argtypes = [CFDataRef] #, CFRange, UInt8
+        Carbon.CFDataGetBytes.argtypes = [CFDataRef]  # , CFRange, UInt8
         Carbon.CFDataGetBytes.restype = None
         Carbon.CFDataGetLength.argtypes = [CFDataRef]
         Carbon.CFDataGetLength.restype = CFIndex
@@ -110,7 +111,8 @@ class KeyMap(object):
         Carbon.TISCopyCurrentKeyboardInputSource.restype = ctypes.c_void_p
         Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource.argtypes = []
         Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource.restype = ctypes.c_void_p
-        Carbon.TISGetInputSourceProperty.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        Carbon.TISGetInputSourceProperty.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p]
         Carbon.TISGetInputSourceProperty.restype = ctypes.c_void_p
         Carbon.UCKeyTranslate.argtypes = [ctypes.c_void_p,
                                           ctypes.c_uint16,
@@ -118,21 +120,27 @@ class KeyMap(object):
                                           ctypes.c_uint32,
                                           ctypes.c_uint32,
                                           OptionBits,      # keyTranslateOptions
-                                          ctypes.POINTER(ctypes.c_uint32), # deadKeyState
+                                          # deadKeyState
+                                          ctypes.POINTER(ctypes.c_uint32),
                                           UniCharCount,    # maxStringLength
-                                          ctypes.POINTER(UniCharCount), # actualStringLength
+                                          # actualStringLength
+                                          ctypes.POINTER(UniCharCount),
                                           UniChar4]
         Carbon.UCKeyTranslate.restype = ctypes.c_uint32
 
         # Get keyboard layout
         klis = Carbon.TISCopyCurrentKeyboardInputSource()
-        k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
+        k_layout = Carbon.TISGetInputSourceProperty(
+            klis, kTISPropertyUnicodeKeyLayoutData)
         if k_layout is None:
             klis = Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource()
-            k_layout = Carbon.TISGetInputSourceProperty(klis, kTISPropertyUnicodeKeyLayoutData)
+            k_layout = Carbon.TISGetInputSourceProperty(
+                klis, kTISPropertyUnicodeKeyLayoutData)
         k_layout_size = Carbon.CFDataGetLength(k_layout)
-        k_layout_buffer = ctypes.create_string_buffer(k_layout_size) # TODO - Verify this works instead of initializing with empty string
-        Carbon.CFDataGetBytes(k_layout, CFRange(0, k_layout_size), ctypes.byref(k_layout_buffer))
+        # TODO - Verify this works instead of initializing with empty string
+        k_layout_buffer = ctypes.create_string_buffer(k_layout_size)
+        Carbon.CFDataGetBytes(k_layout, CFRange(
+            0, k_layout_size), ctypes.byref(k_layout_buffer))
 
         # Generate character representations of key codes
         for key_code in range(0, 128):
@@ -145,7 +153,7 @@ class KeyMap(object):
             retval = Carbon.UCKeyTranslate(k_layout_buffer,
                                            key_code,
                                            kUCKeyActionDisplay,
-                                           0, # No modifier
+                                           0,  # No modifier
                                            Carbon.LMGetKbdType(),
                                            kUCKeyTranslateNoDeadKeysBit,
                                            ctypes.byref(keys_down),
@@ -153,12 +161,13 @@ class KeyMap(object):
                                            ctypes.byref(char_count),
                                            non_shifted_char)
 
-            non_shifted_key = u''.join(unichr(non_shifted_char[i]) for i in range(char_count.value))
+            non_shifted_key = u''.join(
+                unichr(non_shifted_char[i]) for i in range(char_count.value))
 
             retval = Carbon.UCKeyTranslate(k_layout_buffer,
                                            key_code,
                                            kUCKeyActionDisplay,
-                                           shiftKey >> 8, # Shift
+                                           shiftKey >> 8,  # Shift
                                            Carbon.LMGetKbdType(),
                                            kUCKeyTranslateNoDeadKeysBit,
                                            ctypes.byref(keys_down),
@@ -166,9 +175,11 @@ class KeyMap(object):
                                            ctypes.byref(char_count),
                                            shifted_char)
 
-            shifted_key = u''.join(unichr(shifted_char[i]) for i in range(char_count.value))
+            shifted_key = u''.join(
+                unichr(shifted_char[i]) for i in range(char_count.value))
 
-            self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
+            self.layout_specific_keys[key_code] = (
+                non_shifted_key, shifted_key)
         # Cleanup
         Carbon.CFRelease(klis)
 
@@ -236,35 +247,35 @@ class KeyController(object):
             'KEYTYPE_ILLUMINATION_DOWN': 22,
             'KEYTYPE_ILLUMINATION_TOGGLE': 23
         }
-    
+
     def press(self, key_code):
         """ Sends a 'down' event for the specified scan code """
         if key_code >= 128:
             # Media key
             ev = NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
-                14, # type
-                (0, 0), # location
-                0xa00, # flags
-                0, # timestamp
-                0, # window
-                0, # ctx
-                8, # subtype
-                ((key_code-128) << 16) | (0xa << 8), # data1
-                -1 # data2
+                14,  # type
+                (0, 0),  # location
+                0xa00,  # flags
+                0,  # timestamp
+                0,  # window
+                0,  # ctx
+                8,  # subtype
+                ((key_code-128) << 16) | (0xa << 8),  # data1
+                -1  # data2
             )
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
             # Update modifiers if necessary
-            if key_code == 0x37: # cmd
+            if key_code == 0x37:  # cmd
                 self.current_modifiers["cmd"] = True
-            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
+            elif key_code == 0x38 or key_code == 0x3C:  # shift or right shift
                 self.current_modifiers["shift"] = True
-            elif key_code == 0x39: # caps lock
+            elif key_code == 0x39:  # caps lock
                 self.current_modifiers["caps"] = True
-            elif key_code == 0x3A: # alt
+            elif key_code == 0x3A:  # alt
                 self.current_modifiers["alt"] = True
-            elif key_code == 0x3B: # ctrl
+            elif key_code == 0x3B:  # ctrl
                 self.current_modifiers["ctrl"] = True
 
             # Apply modifiers if necessary
@@ -289,29 +300,29 @@ class KeyController(object):
         if key_code >= 128:
             # Media key
             ev = NSEvent.otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
-                14, # type
-                (0, 0), # location
-                0xb00, # flags
-                0, # timestamp
-                0, # window
-                0, # ctx
-                8, # subtype
-                ((key_code-128) << 16) | (0xb << 8), # data1
-                -1 # data2
+                14,  # type
+                (0, 0),  # location
+                0xb00,  # flags
+                0,  # timestamp
+                0,  # window
+                0,  # ctx
+                8,  # subtype
+                ((key_code-128) << 16) | (0xb << 8),  # data1
+                -1  # data2
             )
             Quartz.CGEventPost(0, ev.CGEvent())
         else:
             # Regular key
             # Update modifiers if necessary
-            if key_code == 0x37: # cmd
+            if key_code == 0x37:  # cmd
                 self.current_modifiers["cmd"] = False
-            elif key_code == 0x38 or key_code == 0x3C: # shift or right shift
+            elif key_code == 0x38 or key_code == 0x3C:  # shift or right shift
                 self.current_modifiers["shift"] = False
-            elif key_code == 0x39: # caps lock
+            elif key_code == 0x39:  # caps lock
                 self.current_modifiers["caps"] = False
-            elif key_code == 0x3A: # alt
+            elif key_code == 0x3A:  # alt
                 self.current_modifiers["alt"] = False
-            elif key_code == 0x3B: # ctrl
+            elif key_code == 0x3B:  # ctrl
                 self.current_modifiers["ctrl"] = False
 
             # Apply modifiers if necessary
@@ -333,17 +344,20 @@ class KeyController(object):
 
     def map_char(self, character):
         if character in self.media_keys:
-            return (128+self.media_keys[character],[])
+            return (128+self.media_keys[character], [])
         else:
             return self.key_map.character_to_vk(character)
+
     def map_scan_code(self, scan_code):
         if scan_code >= 128:
-            character = [k for k, v in enumerate(self.media_keys) if v == scan_code-128]
+            character = [k for k, v in enumerate(
+                self.media_keys) if v == scan_code-128]
             if len(character):
                 return character[0]
             return None
         else:
             return self.key_map.vk_to_character(scan_code)
+
 
 class KeyEventListener(object):
     def __init__(self, callback, blocking=False):
@@ -368,14 +382,16 @@ class KeyEventListener(object):
             None)
         loopsource = Quartz.CFMachPortCreateRunLoopSource(None, self.tap, 0)
         loop = Quartz.CFRunLoopGetCurrent()
-        Quartz.CFRunLoopAddSource(loop, loopsource, Quartz.kCFRunLoopDefaultMode)
+        Quartz.CFRunLoopAddSource(
+            loop, loopsource, Quartz.kCFRunLoopDefaultMode)
         Quartz.CGEventTapEnable(self.tap, True)
 
         while self.listening:
             Quartz.CFRunLoopRunInMode(Quartz.kCFRunLoopDefaultMode, 5, False)
 
     def handler(self, proxy, e_type, event, refcon):
-        scan_code = Quartz.CGEventGetIntegerValueField(event, Quartz.kCGKeyboardEventKeycode)
+        scan_code = Quartz.CGEventGetIntegerValueField(
+            event, Quartz.kCGKeyboardEventKeycode)
         key_name = name_from_scancode(scan_code)
         flags = Quartz.CGEventGetFlags(event)
         event_type = ""
@@ -399,23 +415,31 @@ class KeyEventListener(object):
                     (Quartz.kCGEventFlagMaskCommand, ("command", "windows")),
                     (Quartz.kCGEventFlagMaskAlternate, ("option", "alt")),
             ):
-                ends_with_suffix = any(key_name.endswith(suffix) for suffix in key_name_suffixes)
+                ends_with_suffix = any(key_name.endswith(suffix)
+                                       for suffix in key_name_suffixes)
                 if ends_with_suffix:
                     event_found = True
-                    key_name_suffix = key_name_suffixes[0] # it doesn't matter here if we clobber suffixes from the same modifier like option/alt
+                    # it doesn't matter here if we clobber suffixes from the same modifier like option/alt
+                    key_name_suffix = key_name_suffixes[0]
                     if not (flags & bitmask):
                         event_type = "up"
-                        self.modifier_scancodes[key_name_suffix] = [] # just to be sure...
-                        for suffix in key_name_suffixes: self.pressed_modifiers.discard(suffix)
+                        # just to be sure...
+                        self.modifier_scancodes[key_name_suffix] = []
+                        for suffix in key_name_suffixes:
+                            self.pressed_modifiers.discard(suffix)
                     else:
                         if scan_code in self.modifier_scancodes[key_name_suffix]:
                             event_type = "up"
-                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
-                            for suffix in key_name_suffixes: self.pressed_modifiers.discard(suffix)
+                            self.modifier_scancodes[key_name_suffix].remove(
+                                scan_code)
+                            for suffix in key_name_suffixes:
+                                self.pressed_modifiers.discard(suffix)
                         else:
                             event_type = "down"
-                            self.modifier_scancodes[key_name_suffix].append(scan_code)
-                            for suffix in key_name_suffixes: self.pressed_modifiers.add(suffix)
+                            self.modifier_scancodes[key_name_suffix].append(
+                                scan_code)
+                            for suffix in key_name_suffixes:
+                                self.pressed_modifiers.add(suffix)
                     if event_found:
                         break
             if not event_found:
@@ -425,43 +449,55 @@ class KeyEventListener(object):
             return None
 
         pressed_modifiers_tuple = tuple(sorted(self.pressed_modifiers))
-        self.callback(KeyboardEvent(event_type, scan_code, name=key_name, is_keypad=is_keypad, modifiers=pressed_modifiers_tuple))
+        self.callback(KeyboardEvent(event_type, scan_code, name=key_name,
+                      is_keypad=is_keypad, modifiers=pressed_modifiers_tuple))
         return event
+
 
 key_controller = KeyController()
 
 """ Exported functions below """
 
+
 def init():
     key_controller = KeyController()
+
 
 def press(scan_code):
     """ Sends a 'down' event for the specified scan code """
     key_controller.press(scan_code)
 
+
 def release(scan_code):
     """ Sends an 'up' event for the specified scan code """
     key_controller.release(scan_code)
+
 
 def map_name(name):
     """ Returns a tuple of (scan_code, modifiers) where ``scan_code`` is a numeric scan code 
     and ``modifiers`` is an array of string modifier names (like 'shift') """
     yield key_controller.map_char(name)
 
+
 def name_from_scancode(scan_code):
     """ Returns the name or character associated with the specified key code """
     return key_controller.map_scan_code(scan_code)
 
+
 def listen(callback):
     KeyEventListener(callback).run()
 
+
 def type_unicode(character):
-    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
+    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(
+        Quartz.kCGEventSourceStateHIDSystemState)
     # Key down
     event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
-    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(
+        character.encode('utf-16-le')) // 2, character)
     Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
     # Key up
     event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, False)
-    Quartz.CGEventKeyboardSetUnicodeString(event, len(character.encode('utf-16-le')) // 2, character)
+    Quartz.CGEventKeyboardSetUnicodeString(event, len(
+        character.encode('utf-16-le')) // 2, character)
     Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)

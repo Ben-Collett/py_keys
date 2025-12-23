@@ -20,7 +20,7 @@ canonical_names = {
     'down arrow': 'down',
     'right arrow': 'right',
 
-    ' ': 'space', # Prefer to spell out keys that would be hard to read.
+    ' ': 'space',  # Prefer to spell out keys that would be hard to read.
     '\x1b': 'esc',
     '\x08': 'backspace',
     '\n': 'enter',
@@ -82,7 +82,7 @@ canonical_names = {
     'right win': 'right windows',
     'left control': 'left ctrl',
     'right control': 'right ctrl',
-    'left menu': 'left alt', # Windows...
+    'left menu': 'left alt',  # Windows...
     'altgr': 'alt gr',
 
     # https://www.x.org/releases/X11R7.6/doc/libX11/Compose/en_US.UTF-8.html
@@ -1090,7 +1090,6 @@ canonical_names = {
     "threesubscript": "₃",
     "threesuperior": "³",
     "til": "~",
-    "tilde": "~",
     "tilde": "˜",
     "tildecomb": "̃",
     "Tildesmall": "",
@@ -1208,7 +1207,8 @@ canonical_names = {
     "Zsmall": "",
 }
 sided_modifiers = {'ctrl', 'alt', 'shift', 'windows'}
-all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set('left ' + n for n in sided_modifiers) | set('right ' + n for n in sided_modifiers)
+all_modifiers = {'alt', 'alt gr', 'ctrl', 'shift', 'windows'} | set(
+    'left ' + n for n in sided_modifiers) | set('right ' + n for n in sided_modifiers)
 
 # Platform-specific canonical overrides
 
@@ -1219,7 +1219,7 @@ if platform.system() == 'Darwin':
         "cmd": "command",
         "win": "command",
         "backspace": "delete",
-        'alt gr': 'alt' # Issue #117
+        'alt gr': 'alt'  # Issue #117
     })
     all_modifiers = {'alt', 'ctrl', 'shift', 'windows'}
 if platform.system() == 'Linux':
@@ -1230,13 +1230,15 @@ if platform.system() == 'Linux':
         'prior': 'page up',
     })
 
+
 def normalize_name(name):
     """
     Given a key name (e.g. "LEFT CONTROL"), clean up the string and convert to
     the canonical representation (e.g. "left ctrl") if one is known.
     """
     if not name or not isinstance(name, basestring):
-        raise ValueError('Can only normalize non-empty string names. Unexpected '+ repr(name))
+        raise ValueError(
+            'Can only normalize non-empty string names. Unexpected ' + repr(name))
 
     if len(name) > 1:
         name = name.lower()
