@@ -1,11 +1,8 @@
 from queue import Queue
 from buffer import RingBuffer
-import time
 import keyboard
 
 keyboard.patient_collision_safe_mode()
-
-
 space_queue = Queue()
 
 b = RingBuffer(capacity=100)
@@ -25,7 +22,7 @@ def add_key(event: keyboard.KeyboardEvent):
                 for i in range(3):
                     keyboard.press_and_release("backspace")
 
-                to_write = "different "
+                to_write = "diFferent "
                 keyboard.write(to_write)
                 # for ch in to_write:
                 #     keyboard.press_and_release(ch)

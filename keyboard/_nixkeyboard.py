@@ -191,8 +191,14 @@ def write_event(scan_code, is_down):
 
 def map_name(name):
     build_tables()
-    for entry in from_name[name]:
-        yield entry
+
+    if name.isalpha() and name.isupper():
+        for scan_code, modifiers in from_name[name.lower()]:
+            yield scan_code, tuple(sorted(modifiers + ('shift',)))
+        return
+    else:
+        for entry in from_name[name]:
+            yield entry
 
     parts = name.split(' ', 1)
     if len(parts) > 1 and parts[0] in ('left', 'right'):
