@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
-import threading
+from multiprocessing import Condition
+import multiprocessing
 from collections import defaultdict
 from subprocess import check_output, CalledProcessError
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
@@ -140,8 +141,8 @@ def init():
 
 
 pressed_modifiers = set()
-_down_keys = set()
-_keys_cond = threading.Condition()
+_down_keys = multiprocessing.Manager().dict()
+_keys_cond = Condition()
 
 
 def listen(callback):
@@ -170,10 +171,10 @@ def listen(callback):
         is_keypad = scan_code in keypad_scan_codes
 
         if event_type == KEY_DOWN:
-            _down_keys.add(scan_code)
+            _down_keys[scan_code] = True
         else:
             if scan_code in _down_keys:
-                _down_keys.remove(scan_code)
+                del _down_keys[scan_code]
                 with _keys_cond:
                     _keys_cond.notify_all()
         callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name,
