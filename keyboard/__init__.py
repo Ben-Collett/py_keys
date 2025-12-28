@@ -1,4 +1,16 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function as _print_function
+import queue as _queue
+from threading import Event as _UninterruptibleEvent
+import platform as _platform
+from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
+from ._generic import GenericListener as _GenericListener
+from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
+import time as _time
+from threading import Thread as _Thread, Lock as _Lock
+import collections as _collections
+import itertools as _itertools
+import re as _re
 """
 keyboard
 ========
@@ -191,20 +203,7 @@ input('Press enter to continue...')
 # https://stackoverflow.com/questions/983354/how-to-make-a-script-wait-for-a-pressed-key
 ```
 """
-from __future__ import print_function as _print_function
-import queue as _queue
-from threading import Event as _UninterruptibleEvent
-from . import _nix_grabber as _grabber
-import platform as _platform
-from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
-from ._generic import GenericListener as _GenericListener
 # exposes KeyboardEvent to caller
-from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
-import time as _time
-from threading import Thread as _Thread, Lock as _Lock
-import collections as _collections
-import itertools as _itertools
-import re as _re
 
 version = '0.13.5'
 
@@ -327,7 +326,6 @@ class _KeyboardListener(_GenericListener):
         self.blocking_hotkeys = _collections.defaultdict(list)
         self.nonblocking_hotkeys = _collections.defaultdict(list)
         self.filtered_modifiers = _collections.Counter()
-        self.is_replaying = False
 
         # Supporting hotkey suppression is harder than it looks. See
         # https://github.com/boppreh/keyboard/issues/22
@@ -354,9 +352,6 @@ class _KeyboardListener(_GenericListener):
         events by suppressing and re-emitting; and blocked hotkeys, which
         suppress specific hotkeys.
         """
-        # Pass through all fake key events, don't even report to other handlers.
-        if self.is_replaying:
-            return True
 
         if not all(hook(event) for hook in self.blocking_hooks):
             return False
@@ -422,6 +417,7 @@ class _KeyboardListener(_GenericListener):
         return accept
 
     def listen(self):
+        # the actual thing that listens to events
         _os_keyboard.listen(self.direct_callback)
 
 
@@ -512,7 +508,6 @@ def send(hotkey, do_press=True, do_release=True):
 
     Note: keys are released in the opposite order they were pressed.
     """
-    _listener.is_replaying = True
 
     parsed = parse_hotkey(hotkey)
     for step in parsed:
@@ -523,8 +518,6 @@ def send(hotkey, do_press=True, do_release=True):
         if do_release:
             for scan_codes in reversed(step):
                 _os_keyboard.release(scan_codes[0])
-
-    _listener.is_replaying = False
 
 
 # Alias.
@@ -1114,6 +1107,7 @@ def get_hotkey_name(names=None):
 def read_event(suppress=False):
     """
     Blocks until a keyboard event happens, then returns that event.
+    does so by creating a temporary hook which puts the next event in a queue
     """
     queue = _queue.Queue(maxsize=1)
     hooked = hook(queue.put, suppress=suppress)

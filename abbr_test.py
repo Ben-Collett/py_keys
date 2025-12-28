@@ -31,7 +31,7 @@ def add_key(event: keyboard.KeyboardEvent):
 
     if event.name == "backspace":
         b.backspace()
-        print("back")
+        # print("back")
     elif event.name == "space":
         b.add(" ")
     elif event.name == "windows":
