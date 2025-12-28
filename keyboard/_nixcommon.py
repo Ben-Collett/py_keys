@@ -8,7 +8,8 @@ import atexit
 from time import time as now
 from threading import Thread
 from glob import glob
-from queue import Queue
+# from queue import Queue
+from multiprocessing import Queue, Process
 
 # l = long, H = unsigned short,I = unsigned int
 event_bin_format = 'llHHI'
@@ -90,18 +91,40 @@ class EventDevice(object):
 
 
 class AggregatedEventDevice(object):
-    def __init__(self, devices, output=None):
-        self.event_queue = Queue()
-        self.devices = devices
-        self.output = output or self.devices[0]
 
-        def start_reading(device):
+    def __init__(self, devices, output=None):
+        self.event_queue = Queue(maxsize=8192)
+        self.output = output or devices[0]
+
+        paths = [d.path for d in devices]
+
+        self.process = Process(
+            target=self._spawn_threads,
+            args=(paths,),
+            daemon=True
+        )
+        self.process.start()
+
+    def _spawn_threads(self, device_paths):
+        devices = [EventDevice(p) for p in device_paths]
+
+        threads = []
+
+        def read_loop(device):
             while True:
-                self.event_queue.put(device.read_event())
-        for device in self.devices:
-            thread = Thread(target=start_reading, args=[device])
-            thread.daemon = True
+                self.event_queue.put(device.read_event(), block=True)
+
+        for device in devices:
+            thread = Thread(
+                target=read_loop,
+                args=(device,),
+                daemon=True
+            )
             thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
 
     def read_event(self):
         return self.event_queue.get()
