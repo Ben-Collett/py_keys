@@ -6,7 +6,9 @@ import platform as _platform
 from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 from ._generic import GenericListener as _GenericListener
 from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
+import warnings
 import time as _time
+from enum import Enum
 from threading import Thread as _Thread, Lock as _Lock
 import collections as _collections
 import itertools as _itertools
@@ -217,6 +219,12 @@ def _is_number(x): return isinstance(x, int)
 
 def _is_list(x): return isinstance(x, (list, tuple))
 
+
+class LinuxCollisionSafetyModes(Enum):
+    NONE = "none"
+    PATIENT = "patient"
+
+
 # Just a dynamic object to store attributes for the closures.
 
 
@@ -233,20 +241,6 @@ class _Event(_UninterruptibleEvent):
         while True:
             if _UninterruptibleEvent.wait(self, 0.5):
                 break
-
-
-if _platform.system() == 'Windows':
-    from . import _winkeyboard as _os_keyboard
-elif _platform.system() == 'Linux':
-    from . import _nixkeyboard as _os_keyboard
-elif _platform.system() == 'Darwin':
-    try:
-        from . import _darwinkeyboard as _os_keyboard
-    except ImportError:
-        # This can happen during setup if pyobj wasn't already installed
-        pass
-else:
-    raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
 
 _modifier_scan_codes = set()
@@ -317,7 +311,7 @@ class _KeyboardListener(_GenericListener):
     }
 
     def init(self):
-        _os_keyboard.init()
+        _get_os_keyboard().init()
 
         self.active_modifiers = set()
         self.blocking_hooks = []
@@ -418,10 +412,58 @@ class _KeyboardListener(_GenericListener):
 
     def listen(self):
         # the actual thing that listens to events
-        _os_keyboard.listen(self.direct_callback)
+        _get_os_keyboard().listen(self.direct_callback)
 
 
-_listener = _KeyboardListener()
+_os_keyboard = None
+_listener = None
+
+
+_initialized = False
+
+
+def init(linux_collision_safety_mode=None):
+    global _os_keyboard, _listener, _initialized
+
+    if _initialized:
+        raise Exception("double init call")
+
+    if _platform.system() == 'Windows':
+        from . import _winkeyboard as keyboard
+    elif _platform.system() == 'Linux':
+        from . import _nixkeyboard as keyboard
+    elif _platform.system() == 'Darwin':
+        try:
+            from . import _darwinkeyboard as keyboard
+        except ImportError:
+            # This can happen during setup if pyobj wasn't already installed
+            pass
+    else:
+        raise OSError("Unsupported platform '{}'".format(_platform.system()))
+
+    # must set _os_keyboard before creating listener and setting safety mode
+    _os_keyboard = keyboard
+
+    if linux_collision_safety_mode == LinuxCollisionSafetyModes.PATIENT:
+        patient_collision_safe_mode()
+
+    _listener = _KeyboardListener()
+    _initialized = True
+
+
+def _get_os_keyboard():
+    if not _os_keyboard:
+        init()
+    if not _os_keyboard:
+        warnings.warn("failed to set keyboard", warnings.UserWarning)
+
+    return _os_keyboard
+
+
+def _get_listener():
+    if not _listener:
+        init()
+    return _listener
 
 
 def key_to_scan_codes(key, error_if_missing=True):
@@ -445,7 +487,7 @@ def key_to_scan_codes(key, error_if_missing=True):
     try:
         # Put items in ordered dict to remove duplicates.
         t = tuple(_collections.OrderedDict((scan_code, True)
-                  for scan_code, modifier in _os_keyboard.map_name(normalized)))
+                  for scan_code, modifier in _get_os_keyboard().map_name(normalized)))
         e = None
     except (KeyError, ValueError) as exception:
         t = ()
@@ -513,15 +555,11 @@ def send(hotkey, do_press=True, do_release=True):
     for step in parsed:
         if do_press:
             for scan_codes in step:
-                _os_keyboard.press(scan_codes[0])
+                _get_os_keyboard().press(scan_codes[0])
 
         if do_release:
             for scan_codes in reversed(step):
-                _os_keyboard.release(scan_codes[0])
-
-
-# Alias.
-press_and_release = send
+                _get_os_keyboard().release(scan_codes[0])
 
 
 def press(hotkey):
@@ -542,7 +580,7 @@ def is_pressed(hotkey):
         is_pressed('space') #-> True
         is_pressed('ctrl+space') #-> True
     """
-    _listener.start_if_necessary()
+    _get_listener().start_if_necessary()
 
     if _is_number(hotkey):
         # Shortcut.
@@ -593,10 +631,11 @@ def hook(callback, suppress=False, on_remove=lambda: None):
     Returns the given callback for easier development.
     """
     if suppress:
-        _listener.start_if_necessary()
-        append, remove = _listener.blocking_hooks.append, _listener.blocking_hooks.remove
+        _get_listener().start_if_necessary()
+        append, remove = _get_listener(
+        ).blocking_hooks.append, _get_listener().blocking_hooks.remove
     else:
-        append, remove = _listener.add_handler, _listener.remove_handler
+        append, remove = _get_listener().add_handler, _get_listener().remove_handler
 
     append(callback)
 
@@ -632,8 +671,8 @@ def hook_key(key, callback, suppress=False):
     Note: this function shares state with hotkeys, so `clear_all_hotkeys`
     affects it as well.
     """
-    _listener.start_if_necessary()
-    store = _listener.blocking_keys if suppress else _listener.nonblocking_keys
+    _get_listener().start_if_necessary()
+    store = _get_listener().blocking_keys if suppress else _get_listener().nonblocking_keys
     scan_codes = key_to_scan_codes(key)
     for scan_code in scan_codes:
         store[scan_code].append(callback)
@@ -670,19 +709,16 @@ def unhook(remove):
     _hooks[remove]()
 
 
-unhook_key = unhook
-
-
 def unhook_all():
     """
     Removes all keyboard hooks in use, including hotkeys, abbreviations, word
     listeners, `record`ers and `wait`s.
     """
-    _listener.start_if_necessary()
-    _listener.blocking_keys.clear()
-    _listener.nonblocking_keys.clear()
-    del _listener.blocking_hooks[:]
-    del _listener.handlers[:]
+    _get_listener().start_if_necessary()
+    _get_listener().blocking_keys.clear()
+    _get_listener().nonblocking_keys.clear()
+    del _get_listener().blocking_hooks[:]
+    del _get_listener().handlers[:]
     unhook_all_hotkeys()
 
 
@@ -691,9 +727,6 @@ def block_key(key):
     Suppresses all key events of the given key, regardless of modifiers.
     """
     return hook_key(key, lambda e: False, suppress=True)
-
-
-unblock_key = unhook_key
 
 
 def remap_key(src, dst):
@@ -708,9 +741,6 @@ def remap_key(src, dst):
             release(dst)
         return False
     return hook_key(src, handler, suppress=True)
-
-
-unremap_key = unhook_key
 
 
 def parse_hotkey_combinations(hotkey):
@@ -734,7 +764,8 @@ def _add_hotkey_step(handler, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
-    container = _listener.blocking_hotkeys if suppress else _listener.nonblocking_hotkeys
+    container = _get_listener(
+    ).blocking_hotkeys if suppress else _get_listener().nonblocking_hotkeys
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in
@@ -742,14 +773,14 @@ def _add_hotkey_step(handler, combinations, suppress):
     for scan_codes in combinations:
         for scan_code in scan_codes:
             if is_modifier(scan_code):
-                _listener.filtered_modifiers[scan_code] += 1
+                _get_listener().filtered_modifiers[scan_code] += 1
         container[scan_codes].append(handler)
 
     def remove():
         for scan_codes in combinations:
             for scan_code in scan_codes:
                 if is_modifier(scan_code):
-                    _listener.filtered_modifiers[scan_code] -= 1
+                    _get_listener().filtered_modifiers[scan_code] -= 1
             container[scan_codes].remove(handler)
     return remove
 
@@ -797,7 +828,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     if args:
         def callback(callback=callback): return callback(*args)
 
-    _listener.start_if_necessary()
+    _get_listener().start_if_necessary()
 
     steps = parse_hotkey_combinations(hotkey)
 
@@ -927,8 +958,8 @@ def unhook_all_hotkeys():
     """
     # Because of "aliases" some hooks may have more than one entry, all of which
     # are removed together.
-    _listener.blocking_hotkeys.clear()
-    _listener.nonblocking_hotkeys.clear()
+    _get_listener().blocking_hotkeys.clear()
+    _get_listener().nonblocking_hotkeys.clear()
 
 
 unregister_all_hotkeys = remove_all_hotkeys = clear_all_hotkeys = unhook_all_hotkeys
@@ -945,7 +976,7 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
     """
     def handler():
         active_modifiers = sorted(
-            modifier for modifier, state in _listener.modifier_states.items() if state == 'allowed')
+            modifier for modifier, state in _get_listener().modifier_states.items() if state == 'allowed')
         for modifier in active_modifiers:
             release(modifier)
         send(dst)
@@ -953,9 +984,6 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
             press(modifier)
         return False
     return add_hotkey(src, handler, suppress=suppress, trigger_on_release=trigger_on_release)
-
-
-unremap_hotkey = remove_hotkey
 
 
 def stash_state():
@@ -967,7 +995,7 @@ def stash_state():
     with _pressed_events_lock:
         state = sorted(_pressed_events)
     for scan_code in state:
-        _os_keyboard.release(scan_code)
+        _get_os_keyboard().release(scan_code)
     return state
 
 
@@ -976,17 +1004,17 @@ def restore_state(scan_codes):
     Given a list of scan_codes ensures these keys, and only these keys, are
     pressed. Pairs well with `stash_state`, alternative to `restore_modifiers`.
     """
-    _listener.is_replaying = True
+    _get_listener().is_replaying = True
 
     with _pressed_events_lock:
         current = set(_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
-        _os_keyboard.release(scan_code)
+        _get_os_keyboard().release(scan_code)
     for scan_code in target - current:
-        _os_keyboard.press(scan_code)
+        _get_os_keyboard().press(scan_code)
 
-    _listener.is_replaying = False
+    _get_listener().is_replaying = False
 
 
 def restore_modifiers(scan_codes):
@@ -1026,23 +1054,23 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             if letter in '\n\b':
                 send(letter)
             else:
-                _os_keyboard.type_unicode(letter)
+                _get_os_keyboard().type_unicode(letter)
             if delay:
                 _time.sleep(delay)
     else:
         for letter in text:
             try:
-                entries = _os_keyboard.map_name(normalize_name(letter))
+                entries = _get_os_keyboard().map_name(normalize_name(letter))
                 scan_code, modifiers = next(iter(entries))
             except (KeyError, ValueError, StopIteration):
-                _os_keyboard.type_unicode(letter)
+                _get_os_keyboard().type_unicode(letter)
                 continue
 
             for modifier in modifiers:
                 press(modifier)
 
-            _os_keyboard.press(scan_code)
-            _os_keyboard.release(scan_code)
+            _get_os_keyboard().press(scan_code)
+            _get_os_keyboard().release(scan_code)
 
             for modifier in modifiers:
                 release(modifier)
@@ -1088,7 +1116,7 @@ def get_hotkey_name(names=None):
         # "ctrl+shift+plus"
     """
     if names is None:
-        _listener.start_if_necessary()
+        _get_listener().start_if_necessary()
         with _pressed_events_lock:
             names = [e.name for e in _pressed_events.values()]
     else:
@@ -1244,12 +1272,12 @@ def record(until='escape', suppress=False, trigger_on_release=False):
 # on linux using evdev stops collisions from keyboards by making keyboard wait
 def patient_collision_safe_mode():
     if _platform.system() == "Linux":
-        _os_keyboard.patient_type = True
+        _get_os_keyboard().patient_type = True
 
 
 def end_patient_collision_safe_mode():
     if _platform.system() == "Linux":
-        _os_keyboard.patient_type = True
+        _get_os_keyboard().patient_type = True
 
 
 def play(events, speed_factor=1.0):
@@ -1378,3 +1406,8 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
 remove_abbreviation = remove_word_listener
+press_and_release = send
+unremap_hotkey = remove_hotkey
+unhook_key = unhook
+unblock_key = unhook_key
+unremap_key = unhook_key

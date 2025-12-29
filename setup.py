@@ -16,14 +16,15 @@ setup(
     url='https://github.com/boppreh/keyboard',
     license='MIT',
     description='Hook and simulate keyboard events on Windows and Linux',
-    keywords = 'keyboard hook simulate hotkey',
+    keywords='keyboard hook simulate hotkey',
 
     # Wheel creation breaks with Windows newlines.
     # https://github.com/pypa/setuptools/issues/1126
     long_description=keyboard.__doc__.replace('\r\n', '\n'),
     long_description_content_type='text/markdown',
 
-    install_requires=["pyobjc; sys_platform=='darwin'"], # OSX-specific dependency
+    # OSX-specific dependency
+    install_requires=["pyobjc; sys_platform=='darwin'"],
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',

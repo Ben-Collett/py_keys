@@ -2,7 +2,8 @@ from queue import Queue
 from buffer import RingBuffer
 import keyboard
 
-keyboard.patient_collision_safe_mode()
+keyboard.init(
+    linux_collision_safety_mode=keyboard.LinuxCollisionSafetyModes.PATIENT)
 space_queue = Queue()
 
 b = RingBuffer(capacity=100)
