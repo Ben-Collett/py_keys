@@ -123,8 +123,11 @@ class AggregatedEventDevice(object):
             thread.start()
             threads.append(thread)
 
-        for thread in threads:
-            thread.join()
+        try:
+            for thread in threads:
+                thread.join()
+        except KeyboardInterrupt:
+            pass
 
     def read_event(self):
         return self.event_queue.get()

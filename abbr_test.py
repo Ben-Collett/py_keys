@@ -38,8 +38,11 @@ def add_key(event: keyboard.KeyboardEvent):
         b.clear()
     elif len(event.name) == 1:
         b.add(event.name)
-    print(b)
+    # print(b)
 
 
 keyboard.hook(add_key)
-keyboard.wait()
+try:
+    keyboard.wait()
+except KeyboardInterrupt:
+    pass
