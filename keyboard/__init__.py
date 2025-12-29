@@ -1097,8 +1097,11 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
         lock.wait()
         remove_hotkey(remove)
     else:
-        while True:
-            _time.sleep(1e6)
+        try:
+            while True:
+                _time.sleep(1e6)
+        except KeyboardInterrupt:
+            pass
 
 
 def get_hotkey_name(names=None):
