@@ -41,4 +41,4 @@ def add_to_queue(event):
 # multiprocessing.Process(target=process_event).start()
 threading.Thread(target=process_event).start()
 keyboard.hook(add_to_queue)
-keyboard.wait()
+keyboard.wait(hotkey="alt")

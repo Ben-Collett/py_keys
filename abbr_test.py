@@ -43,7 +43,4 @@ def add_key(event: keyboard.KeyboardEvent):
 
 
 keyboard.hook(add_key)
-try:
-    keyboard.wait()
-except KeyboardInterrupt:
-    pass
+keyboard.wait(hotkey="alt gr")

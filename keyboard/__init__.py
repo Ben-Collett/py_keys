@@ -238,9 +238,12 @@ class _State(object):
 
 class _Event(_UninterruptibleEvent):
     def wait(self):
-        while True:
-            if _UninterruptibleEvent.wait(self, 0.5):
-                break
+        try:
+            while True:
+                if _UninterruptibleEvent.wait(self, 0.5):
+                    break
+        except KeyboardInterrupt:
+            pass
 
 
 _modifier_scan_codes = set()
