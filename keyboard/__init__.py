@@ -265,6 +265,10 @@ def is_modifier(key):
 
 _pressed_events_lock = _Lock()
 _pressed_events = {}
+
+_virtually_pressed_events_lock = _Lock()
+_virtually_pressed_events: set[int] = set()
+
 _physically_pressed_keys = _pressed_events
 _logically_pressed_keys = {}
 
@@ -339,7 +343,7 @@ class _KeyboardListener(_GenericListener):
 
         return event.scan_code or (event.name and event.name != 'unknown')
 
-    def direct_callback(self, event):
+    def direct_callback(self, event: KeyboardEvent):
         """
         This function is called for every OS keyboard event and decides if the
         event should be blocked or not, and passes a copy of the event to
@@ -557,12 +561,17 @@ def send(hotkey, do_press=True, do_release=True):
     parsed = parse_hotkey(hotkey)
     for step in parsed:
         if do_press:
-            for scan_codes in step:
-                _get_os_keyboard().press(scan_codes[0])
+            with _virtually_pressed_events_lock:
+                for scan_codes in step:
+                    _virtually_pressed_events.add(scan_codes[0])
+                    _get_os_keyboard().press(scan_codes[0])
 
         if do_release:
-            for scan_codes in reversed(step):
-                _get_os_keyboard().release(scan_codes[0])
+            with _virtually_pressed_events_lock:
+                for scan_codes in reversed(step):
+                    if scan_codes[0] in _virtually_pressed_events:
+                        _virtually_pressed_events.remove(scan_codes[0])
+                    _get_os_keyboard().release(scan_codes[0])
 
 
 def press(hotkey):
@@ -995,8 +1004,16 @@ def stash_state():
     the list. Pairs well with `restore_state` and `restore_modifiers`.
     """
     # TODO: stash caps lock / numlock /scrollock state.
-    with _pressed_events_lock:
-        state = sorted(_pressed_events)
+
+    # only consider virtually down keys on linux
+    # because which keyboard an event comes from is important on linux
+    # not sure about macos though.
+    if _platform.system() == "Linux":
+        with _virtually_pressed_events_lock:
+            state = sorted(_virtually_pressed_events)
+    else:
+        with _pressed_events_lock:
+            state = sorted(_pressed_events)
     for scan_code in state:
         _get_os_keyboard().release(scan_code)
     return state
@@ -1069,12 +1086,14 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 _get_os_keyboard().type_unicode(letter)
                 continue
 
+            print("pressing modifies")
             for modifier in modifiers:
                 press(modifier)
 
             _get_os_keyboard().press(scan_code)
             _get_os_keyboard().release(scan_code)
 
+            print("releasing modifies")
             for modifier in modifiers:
                 release(modifier)
 

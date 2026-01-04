@@ -1,0 +1,4 @@
+write atleast "semi-automated" test to cover following edge cases somehow, especially on linux
+user tries to write while holding down shift on another keyboard 
+user tries to write while holding down one of the needed keys on another keyboard
+user tries to write a lower case letter while holding down shift on another keyboard
