@@ -1063,6 +1063,9 @@ def write(text, delay=0, restore_state_after=True, exact=None):
     alt+codepoint or special events). If None, uses platform-specific suggested
     value.
     """
+
+    # listener needs to be started to write on linux
+    _get_listener().start_if_necessary()
     if exact is None:
         exact = _platform.system() == 'Windows'
 
@@ -1086,14 +1089,12 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 _get_os_keyboard().type_unicode(letter)
                 continue
 
-            print("pressing modifies")
             for modifier in modifiers:
                 press(modifier)
 
             _get_os_keyboard().press(scan_code)
             _get_os_keyboard().release(scan_code)
 
-            print("releasing modifies")
             for modifier in modifiers:
                 release(modifier)
 
