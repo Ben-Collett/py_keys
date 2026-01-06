@@ -6,6 +6,7 @@ import platform as _platform
 from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 from ._generic import GenericListener as _GenericListener
 from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
+from ._windows_synthetic_modes import WindowsSyntheticModes
 import warnings
 import time as _time
 from enum import Enum
@@ -429,7 +430,7 @@ _listener = None
 _initialized = False
 
 
-def init(linux_collision_safety_mode=None):
+def init(linux_collision_safety_mode=None, windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE):
     global _os_keyboard, _listener, _initialized
 
     if _initialized:
@@ -437,6 +438,7 @@ def init(linux_collision_safety_mode=None):
 
     if _platform.system() == 'Windows':
         from . import _winkeyboard as keyboard
+        keyboard.synthetic_mode = windows_synetic_mode
     elif _platform.system() == 'Linux':
         from . import _nixkeyboard as keyboard
     elif _platform.system() == 'Darwin':
@@ -471,6 +473,11 @@ def _get_listener():
     if not _listener:
         init()
     return _listener
+
+
+def set_windows_synthetic_mode(mode: WindowsSyntheticModes):
+    if _platform == "Windows":
+        _os_keyboard.synthetic_mode = mode
 
 
 def key_to_scan_codes(key, error_if_missing=True):

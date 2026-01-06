@@ -3,14 +3,15 @@ from buffer import RingBuffer
 import keyboard
 
 keyboard.init(
-    linux_collision_safety_mode=keyboard.LinuxCollisionSafetyModes.PATIENT)
+    linux_collision_safety_mode=keyboard.LinuxCollisionSafetyModes.PATIENT,
+    windows_synetic_mode=keyboard.WindowsSyntheticModes.REAL)
 space_queue = Queue()
 
 b = RingBuffer(capacity=100)
 
 
 def add_key(event: keyboard.KeyboardEvent):
-    # print(event.device)
+    print(b)
     if event.event_type == keyboard.KEY_UP:
 
         # print("a", event.name)
