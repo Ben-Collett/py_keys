@@ -135,13 +135,17 @@ def build_device():
     device = aggregate_devices('kbd')
 
 
+_down_keys = None
+
+
 def init():
+    global _down_keys
     build_device()
     build_tables()
+    _down_keys = multiprocessing.Manager().dict()
 
 
 pressed_modifiers = set()
-_down_keys = multiprocessing.Manager().dict()
 _keys_cond = Condition()
 
 

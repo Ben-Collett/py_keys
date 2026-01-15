@@ -4,6 +4,7 @@ from collections import namedtuple
 import struct
 from io import BufferedWriter
 import os
+import signal
 import atexit
 from time import time as now
 from threading import Thread
@@ -90,46 +91,40 @@ class EventDevice(object):
         self.output_file.flush()
 
 
-class AggregatedEventDevice(object):
+def device_reader_worker(device_paths, event_queue):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    devices = [EventDevice(p) for p in device_paths]
 
+    def read_loop(device):
+        while True:
+            event_queue.put(device.read_event(), block=True)
+
+    threads = []
+    for d in devices:
+        t = Thread(target=read_loop, args=(d,), daemon=True)
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()
+
+
+class AggregatedEventDevice:
     def __init__(self, devices, output=None):
-        self.event_queue = Queue(maxsize=8192)
-        self.output = output or devices[0]
+        self.event_queue = Queue()
 
+        self.output = output  # stays in parent only
         paths = [d.path for d in devices]
 
         self.process = Process(
-            target=self._spawn_threads,
-            args=(paths,),
-            daemon=True
+            target=device_reader_worker,
+            args=(paths, self.event_queue),
+            daemon=True,
         )
         self.process.start()
 
-    def _spawn_threads(self, device_paths):
-        devices = [EventDevice(p) for p in device_paths]
-
-        threads = []
-
-        def read_loop(device):
-            while True:
-                self.event_queue.put(device.read_event(), block=True)
-
-        for device in devices:
-            thread = Thread(
-                target=read_loop,
-                args=(device,),
-                daemon=True
-            )
-            thread.start()
-            threads.append(thread)
-
-        try:
-            for thread in threads:
-                thread.join()
-        except KeyboardInterrupt:
-            pass
-
     def read_event(self):
+        # Blocks until an event is available
         return self.event_queue.get()
 
     def write_event(self, type, code, value):

@@ -3,3 +3,6 @@ user tries to write while holding down shift on another keyboard
 user tries to write while holding down one of the needed keys on another keyboard
 user tries to write a lower case letter while holding down shift on another keyboard
 handle device discondecting
+
+
+add a is_dash or normalize dashes to handle different kinds of dashes especially those that don't show up on different platforms.

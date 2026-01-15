@@ -1,7 +1,7 @@
 import keyboard
 from time import sleep
-expected = 100
-# out_str = "backspace, "*99 + "backspace"
+expected = 1000
+# out_str = "backspace, "*(expected-1) + "backspace"
 
 
 def dec_print(event: keyboard.KeyboardEvent):
@@ -16,10 +16,15 @@ def dec_print(event: keyboard.KeyboardEvent):
         print(expected)
 
 
-keyboard.hook(dec_print)
-# keyboard.press_and_release(out_str)
-for i in range(100):
-    keyboard.press_and_release("backspace")
-    sleep(.000000000000001)
+def main():
+    keyboard.hook(dec_print)
+    # keyboard.press_and_release(out_str)
+    for i in range(expected):
+        keyboard.press_and_release("backspace")
+        # sleep(.000000000000001)
 
-keyboard.wait()
+    keyboard.wait()
+
+
+if __name__ == "__main__":
+    main()
