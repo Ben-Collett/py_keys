@@ -25,7 +25,8 @@ def main():
                     for i in range(3):
                         keyboard.press_and_release("backspace")
 
-                    to_write = "d!iF!fere?nt "
+                    to_write = r"d!i[F!fere?nt [{}] \ "
+                    # to_write = "d!iF!fere?nt "
                     keyboard.write(to_write)
                     # for ch in to_write:
                     #     keyboard.press_and_release(ch)
@@ -44,7 +45,8 @@ def main():
         # print(b)
 
     keyboard.hook(add_key)
-    keyboard.wait(hotkey="alt gr")
+    keyboard.wait()
+    # keyboard.wait(hotkey="alt gr")
 
 
 if __name__ == "__main__":
