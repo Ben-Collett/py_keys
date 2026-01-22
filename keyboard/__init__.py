@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function as _print_function
+
 import queue as _queue
 from threading import Event as _UninterruptibleEvent
 import platform as _platform
@@ -14,6 +14,7 @@ from threading import Thread as _Thread, Lock as _Lock
 import collections as _collections
 import itertools as _itertools
 import re as _re
+
 """
 keyboard
 ========
@@ -208,17 +209,22 @@ input('Press enter to continue...')
 """
 # exposes KeyboardEvent to caller
 
-version = '0.13.5'
+version = "0.13.5"
 
 # Python2... Buggy on time changes and leap seconds, but no other good option (https://stackoverflow.com/questions/1205722/how-do-i-get-monotonic-time-durations-in-python).
-_time.monotonic = getattr(_time, 'monotonic', None) or _time.time
+_time.monotonic = getattr(_time, "monotonic", None) or _time.time
 
 
-def _is_str(x): return isinstance(x, str)
-def _is_number(x): return isinstance(x, int)
+def _is_str(x):
+    return isinstance(x, str)
 
 
-def _is_list(x): return isinstance(x, (list, tuple))
+def _is_number(x):
+    return isinstance(x, int)
+
+
+def _is_list(x):
+    return isinstance(x, (list, tuple))
 
 
 class LinuxCollisionSafetyModes(Enum):
@@ -231,6 +237,7 @@ class LinuxCollisionSafetyModes(Enum):
 
 class _State(object):
     pass
+
 
 # The "Event" class from `threading` ignores signals when waiting and is
 # impossible to interrupt with Ctrl+C. So we rewrite `wait` to wait in small,
@@ -258,8 +265,7 @@ def is_modifier(key):
         return key in all_modifiers
     else:
         if not _modifier_scan_codes:
-            scan_codes = (key_to_scan_codes(name, False)
-                          for name in all_modifiers)
+            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers)
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
@@ -288,34 +294,32 @@ class _KeyboardListener(_GenericListener):
         # |             |         |            |       |
         # |             |         |            |       |      Next state.
         # v             v         v            v       v      v
-        ('free',       KEY_UP,   'modifier'): (False, True,  'free'),
-        ('free',       KEY_DOWN, 'modifier'): (False, False, 'pending'),
-        ('pending',    KEY_UP,   'modifier'): (True,  True,  'free'),
-        ('pending',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
-        ('suppressed', KEY_UP,   'modifier'): (False, False, 'free'),
-        ('suppressed', KEY_DOWN, 'modifier'): (False, False, 'suppressed'),
-        ('allowed',    KEY_UP,   'modifier'): (False, True,  'free'),
-        ('allowed',    KEY_DOWN, 'modifier'): (False, True,  'allowed'),
-
-        ('free',       KEY_UP,   'hotkey'):   (False, None,  'free'),
-        ('free',       KEY_DOWN, 'hotkey'):   (False, None,  'free'),
-        ('pending',    KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
-        ('pending',    KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
-        ('suppressed', KEY_UP,   'hotkey'):   (False, None,  'suppressed'),
-        ('suppressed', KEY_DOWN, 'hotkey'):   (False, None,  'suppressed'),
-        ('allowed',    KEY_UP,   'hotkey'):   (False, None,  'allowed'),
-        ('allowed',    KEY_DOWN, 'hotkey'):   (False, None,  'allowed'),
-
-        ('free',       KEY_UP,   'other'):    (False, True,  'free'),
-        ('free',       KEY_DOWN, 'other'):    (False, True,  'free'),
-        ('pending',    KEY_UP,   'other'):    (True,  True,  'allowed'),
-        ('pending',    KEY_DOWN, 'other'):    (True,  True,  'allowed'),
+        ("free", KEY_UP, "modifier"): (False, True, "free"),
+        ("free", KEY_DOWN, "modifier"): (False, False, "pending"),
+        ("pending", KEY_UP, "modifier"): (True, True, "free"),
+        ("pending", KEY_DOWN, "modifier"): (False, True, "allowed"),
+        ("suppressed", KEY_UP, "modifier"): (False, False, "free"),
+        ("suppressed", KEY_DOWN, "modifier"): (False, False, "suppressed"),
+        ("allowed", KEY_UP, "modifier"): (False, True, "free"),
+        ("allowed", KEY_DOWN, "modifier"): (False, True, "allowed"),
+        ("free", KEY_UP, "hotkey"): (False, None, "free"),
+        ("free", KEY_DOWN, "hotkey"): (False, None, "free"),
+        ("pending", KEY_UP, "hotkey"): (False, None, "suppressed"),
+        ("pending", KEY_DOWN, "hotkey"): (False, None, "suppressed"),
+        ("suppressed", KEY_UP, "hotkey"): (False, None, "suppressed"),
+        ("suppressed", KEY_DOWN, "hotkey"): (False, None, "suppressed"),
+        ("allowed", KEY_UP, "hotkey"): (False, None, "allowed"),
+        ("allowed", KEY_DOWN, "hotkey"): (False, None, "allowed"),
+        ("free", KEY_UP, "other"): (False, True, "free"),
+        ("free", KEY_DOWN, "other"): (False, True, "free"),
+        ("pending", KEY_UP, "other"): (True, True, "allowed"),
+        ("pending", KEY_DOWN, "other"): (True, True, "allowed"),
         # Necessary when hotkeys are removed after being triggered, such as
         # TestKeyboard.test_add_hotkey_multistep_suppress_modifier.
-        ('suppressed', KEY_UP,   'other'):    (False, False, 'allowed'),
-        ('suppressed', KEY_DOWN, 'other'):    (True,  True,  'allowed'),
-        ('allowed',    KEY_UP,   'other'):    (False, True,  'allowed'),
-        ('allowed',    KEY_DOWN, 'other'):    (False, True,  'allowed'),
+        ("suppressed", KEY_UP, "other"): (False, False, "allowed"),
+        ("suppressed", KEY_DOWN, "other"): (True, True, "allowed"),
+        ("allowed", KEY_UP, "other"): (False, True, "allowed"),
+        ("allowed", KEY_DOWN, "other"): (False, True, "allowed"),
     }
 
     def init(self):
@@ -342,7 +346,7 @@ class _KeyboardListener(_GenericListener):
         for callback in self.nonblocking_hotkeys[hotkey]:
             callback(event)
 
-        return event.scan_code or (event.name and event.name != 'unknown')
+        return event.scan_code or (event.name and event.name != "unknown")
 
     def direct_callback(self, event: KeyboardEvent):
         """
@@ -383,24 +387,30 @@ class _KeyboardListener(_GenericListener):
 
         if self.blocking_hotkeys:
             if self.filtered_modifiers[scan_code]:
-                origin = 'modifier'
+                origin = "modifier"
                 modifiers_to_update = set([scan_code])
             else:
                 modifiers_to_update = self.active_modifiers
                 if is_modifier(scan_code):
                     modifiers_to_update = modifiers_to_update | {scan_code}
                 callback_results = [
-                    callback(event) for callback in self.blocking_hotkeys[hotkey]]
+                    callback(event) for callback in self.blocking_hotkeys[hotkey]
+                ]
                 if callback_results:
                     accept = all(callback_results)
-                    origin = 'hotkey'
+                    origin = "hotkey"
                 else:
-                    origin = 'other'
+                    origin = "other"
 
             for key in sorted(modifiers_to_update):
-                transition_tuple = (self.modifier_states.get(
-                    key, 'free'), event_type, origin)
-                should_press, new_accept, new_state = self.transition_table[transition_tuple]
+                transition_tuple = (
+                    self.modifier_states.get(key, "free"),
+                    event_type,
+                    origin,
+                )
+                should_press, new_accept, new_state = self.transition_table[
+                    transition_tuple
+                ]
                 if should_press:
                     press(key)
                 if new_accept is not None:
@@ -430,18 +440,22 @@ _listener = None
 _initialized = False
 
 
-def init(linux_collision_safety_mode=None, windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE):
+def init(
+    linux_collision_safety_mode=None,
+    windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
+):
     global _os_keyboard, _listener, _initialized
 
     if _initialized:
         raise Exception("double init call")
 
-    if _platform.system() == 'Windows':
+    if _platform.system() == "Windows":
         from . import _winkeyboard as keyboard
+
         keyboard.synthetic_mode = windows_synetic_mode
-    elif _platform.system() == 'Linux':
+    elif _platform.system() == "Linux":
         from . import _nixkeyboard as keyboard
-    elif _platform.system() == 'Darwin':
+    elif _platform.system() == "Darwin":
         try:
             from . import _darwinkeyboard as keyboard
         except ImportError:
@@ -489,27 +503,33 @@ def key_to_scan_codes(key, error_if_missing=True):
     elif _is_list(key):
         return sum((key_to_scan_codes(i) for i in key), ())
     elif not _is_str(key):
-        raise ValueError('Unexpected key type ' +
-                         str(type(key)) + ', value (' + repr(key) + ')')
+        raise ValueError(
+            "Unexpected key type " + str(type(key)) + ", value (" + repr(key) + ")"
+        )
 
     normalized = normalize_name(key)
     if normalized in sided_modifiers:
-        left_scan_codes = key_to_scan_codes('left ' + normalized, False)
-        right_scan_codes = key_to_scan_codes('right ' + normalized, False)
-        return left_scan_codes + tuple(c for c in right_scan_codes if c not in left_scan_codes)
+        left_scan_codes = key_to_scan_codes("left " + normalized, False)
+        right_scan_codes = key_to_scan_codes("right " + normalized, False)
+        return left_scan_codes + tuple(
+            c for c in right_scan_codes if c not in left_scan_codes
+        )
 
     try:
         # Put items in ordered dict to remove duplicates.
-        t = tuple(_collections.OrderedDict((scan_code, True)
-                  for scan_code, modifier in _get_os_keyboard().map_name(normalized)))
+        t = tuple(
+            _collections.OrderedDict(
+                (scan_code, True)
+                for scan_code, modifier in _get_os_keyboard().map_name(normalized)
+            )
+        )
         e = None
     except (KeyError, ValueError) as exception:
         t = ()
         e = exception
 
     if not t and error_if_missing:
-        raise ValueError(
-            'Key {} is not mapped to any known key.'.format(repr(key)), e)
+        raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), e)
     else:
         return t
 
@@ -542,8 +562,8 @@ def parse_hotkey(hotkey):
         return hotkey
 
     steps = []
-    for step in _re.split(r',\s?', hotkey):
-        keys = _re.split(r'\s?\+\s?', step)
+    for step in _re.split(r",\s?", hotkey):
+        keys = _re.split(r"\s?\+\s?", step)
         steps.append(tuple(key_to_scan_codes(key) for key in keys))
     return tuple(steps)
 
@@ -582,12 +602,12 @@ def send(hotkey, do_press=True, do_release=True):
 
 
 def press(hotkey):
-    """ Presses and holds down a hotkey (see `send`). """
+    """Presses and holds down a hotkey (see `send`)."""
     send(hotkey, True, False)
 
 
 def release(hotkey):
-    """ Releases a hotkey (see `send`). """
+    """Releases a hotkey (see `send`)."""
     send(hotkey, False, True)
 
 
@@ -609,7 +629,8 @@ def is_pressed(hotkey):
     steps = parse_hotkey(hotkey)
     if len(steps) > 1:
         raise ValueError(
-            "Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't).")
+            "Impossible to check if multi-step hotkeys are pressed (`a+b` is ok, `a, b` isn't)."
+        )
 
     # Convert _pressed_events into a set
     with _pressed_events_lock:
@@ -651,8 +672,10 @@ def hook(callback, suppress=False, on_remove=lambda: None):
     """
     if suppress:
         _get_listener().start_if_necessary()
-        append, remove = _get_listener(
-        ).blocking_hooks.append, _get_listener().blocking_hooks.remove
+        append, remove = (
+            _get_listener().blocking_hooks.append,
+            _get_listener().blocking_hooks.remove,
+        )
     else:
         append, remove = _get_listener().add_handler, _get_listener().remove_handler
 
@@ -663,6 +686,7 @@ def hook(callback, suppress=False, on_remove=lambda: None):
         _hooks.pop(remove_, None)
         remove(callback)
         on_remove()
+
     _hooks[callback] = _hooks[remove_] = remove_
     return remove_
 
@@ -691,7 +715,9 @@ def hook_key(key, callback, suppress=False):
     affects it as well.
     """
     _get_listener().start_if_necessary()
-    store = _get_listener().blocking_keys if suppress else _get_listener().nonblocking_keys
+    store = (
+        _get_listener().blocking_keys if suppress else _get_listener().nonblocking_keys
+    )
     scan_codes = key_to_scan_codes(key)
     for scan_code in scan_codes:
         store[scan_code].append(callback)
@@ -702,6 +728,7 @@ def hook_key(key, callback, suppress=False):
         _hooks.pop(remove_, None)
         for scan_code in scan_codes:
             store[scan_code].remove(callback)
+
     _hooks[callback] = _hooks[key] = _hooks[remove_] = remove_
     return remove_
 
@@ -710,14 +737,18 @@ def on_press_key(key, callback, suppress=False):
     """
     Invokes `callback` for KEY_DOWN event related to the given key. For details see `hook`.
     """
-    return hook_key(key, lambda e: e.event_type == KEY_UP or callback(e), suppress=suppress)
+    return hook_key(
+        key, lambda e: e.event_type == KEY_UP or callback(e), suppress=suppress
+    )
 
 
 def on_release_key(key, callback, suppress=False):
     """
     Invokes `callback` for KEY_UP event related to the given key. For details see `hook`.
     """
-    return hook_key(key, lambda e: e.event_type == KEY_DOWN or callback(e), suppress=suppress)
+    return hook_key(
+        key, lambda e: e.event_type == KEY_DOWN or callback(e), suppress=suppress
+    )
 
 
 def unhook(remove):
@@ -753,12 +784,14 @@ def remap_key(src, dst):
     Whenever the key `src` is pressed or released, regardless of modifiers,
     press or release the hotkey `dst` instead.
     """
+
     def handler(event):
         if event.event_type == KEY_DOWN:
             press(dst)
         else:
             release(dst)
         return False
+
     return hook_key(src, handler, suppress=True)
 
 
@@ -768,6 +801,7 @@ def parse_hotkey_combinations(hotkey):
     instead of each step being a list of the different scan codes for each key,
     each step is a list of all possible combinations of those scan codes.
     """
+
     def combine_step(step):
         # A single step may be composed of many keys, and each key can have
         # multiple scan codes. To speed up hotkey matching and avoid introducing
@@ -783,8 +817,11 @@ def _add_hotkey_step(handler, combinations, suppress):
     """
     Hooks a single-step hotkey (e.g. 'shift+a').
     """
-    container = _get_listener(
-    ).blocking_hotkeys if suppress else _get_listener().nonblocking_hotkeys
+    container = (
+        _get_listener().blocking_hotkeys
+        if suppress
+        else _get_listener().nonblocking_hotkeys
+    )
 
     # Register the scan codes of every possible combination of
     # modfiier + main key. Modifiers have to be registered in
@@ -801,13 +838,16 @@ def _add_hotkey_step(handler, combinations, suppress):
                 if is_modifier(scan_code):
                     _get_listener().filtered_modifiers[scan_code] -= 1
             container[scan_codes].remove(handler)
+
     return remove
 
 
 _hotkeys = {}
 
 
-def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False):
+def add_hotkey(
+    hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_release=False
+):
     """
     Invokes a callback every time a hotkey is pressed. The hotkey must
     be in the format `ctrl+shift+a, s`. This would trigger when the user holds
@@ -845,7 +885,9 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         add_hotkey('ctrl+alt+enter, space', some_callback)
     """
     if args:
-        def callback(callback=callback): return callback(*args)
+
+        def callback(callback=callback):
+            return callback(*args)
 
     _get_listener().start_if_necessary()
 
@@ -857,8 +899,13 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         # and any mistake will make that key "sticky". Therefore just let all
         # KEY_UP events go through as long as that's not what we are listening
         # for.
-        def handler(e): return (event_type == KEY_DOWN and e.event_type ==
-                                KEY_UP and e.scan_code in _logically_pressed_keys) or (event_type == e.event_type and callback())
+        def handler(e):
+            return (
+                event_type == KEY_DOWN
+                and e.event_type == KEY_UP
+                and e.scan_code in _logically_pressed_keys
+            ) or (event_type == e.event_type and callback())
+
         remove_step = _add_hotkey_step(handler, steps[0], suppress)
 
         def remove_():
@@ -866,6 +913,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
             _hotkeys.pop(hotkey, None)
             _hotkeys.pop(remove_, None)
             _hotkeys.pop(callback, None)
+
         # TODO: allow multiple callbacks for each hotkey without overwriting the
         # remover.
         _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
@@ -875,18 +923,18 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
     state.remove_catch_misses = lambda: None
     state.remove_last_step = None
     state.suppressed_events = []
-    state.last_update = float('-inf')
+    state.last_update = float("-inf")
 
     def catch_misses(event, force_fail=False):
         if (
+            (
                 event.event_type == event_type
                 and state.index
                 and event.scan_code not in allowed_keys_by_step[state.index]
-            ) or (
-                timeout
-                and _time.monotonic() - state.last_update >= timeout
-        ) or force_fail:  # Weird formatting to ensure short-circuit.
-
+            )
+            or (timeout and _time.monotonic() - state.last_update >= timeout)
+            or force_fail
+        ):  # Weird formatting to ensure short-circuit.
             state.remove_last_step()
 
             for event in state.suppressed_events:
@@ -914,6 +962,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
             state.remove_catch_misses = hook(catch_misses, suppress=True)
 
         if new_index == len(steps) - 1:
+
             def handler(event):
                 if event.event_type == KEY_UP:
                     remove()
@@ -924,25 +973,25 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
                 else:
                     state.suppressed_events[:] = [event]
                     return False
+
             remove = _add_hotkey_step(handler, steps[state.index], suppress)
         else:
             # Fix value of next_index.
-            def handler(event, new_index=state.index+1):
+            def handler(event, new_index=state.index + 1):
                 if event.event_type == KEY_UP:
                     remove()
                     set_index(new_index)
                 state.suppressed_events.append(event)
                 return False
+
             remove = _add_hotkey_step(handler, steps[state.index], suppress)
         state.remove_last_step = remove
         state.last_update = _time.monotonic()
         return False
+
     set_index(0)
 
-    allowed_keys_by_step = [
-        set().union(*step)
-        for step in steps
-    ]
+    allowed_keys_by_step = [set().union(*step) for step in steps]
 
     def remove_():
         state.remove_catch_misses()
@@ -950,6 +999,7 @@ def add_hotkey(hotkey, callback, args=(), suppress=False, timeout=1, trigger_on_
         _hotkeys.pop(hotkey, None)
         _hotkeys.pop(remove_, None)
         _hotkeys.pop(callback, None)
+
     # TODO: allow multiple callbacks for each hotkey without overwriting the
     # remover.
     _hotkeys[hotkey] = _hotkeys[remove_] = _hotkeys[callback] = remove_
@@ -993,16 +1043,23 @@ def remap_hotkey(src, dst, suppress=True, trigger_on_release=False):
 
         remap('alt+w', 'ctrl+up')
     """
+
     def handler():
         active_modifiers = sorted(
-            modifier for modifier, state in _get_listener().modifier_states.items() if state == 'allowed')
+            modifier
+            for modifier, state in _get_listener().modifier_states.items()
+            if state == "allowed"
+        )
         for modifier in active_modifiers:
             release(modifier)
         send(dst)
         for modifier in reversed(active_modifiers):
             press(modifier)
         return False
-    return add_hotkey(src, handler, suppress=suppress, trigger_on_release=trigger_on_release)
+
+    return add_hotkey(
+        src, handler, suppress=suppress, trigger_on_release=trigger_on_release
+    )
 
 
 def stash_state():
@@ -1048,8 +1105,7 @@ def restore_modifiers(scan_codes):
     """
     Like `restore_state`, but only restores modifier keys.
     """
-    restore_state(
-        (scan_code for scan_code in scan_codes if is_modifier(scan_code)))
+    restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
 
 def write(text, delay=0, restore_state_after=True, exact=None):
@@ -1074,14 +1130,14 @@ def write(text, delay=0, restore_state_after=True, exact=None):
     # listener needs to be started to write on linux
     _get_listener().start_if_necessary()
     if exact is None:
-        exact = _platform.system() == 'Windows'
+        exact = _platform.system() == "Windows"
 
     state = stash_state()
 
     # Window's typing of unicode characters is quite efficient and should be preferred.
     if exact:
         for letter in text:
-            if letter in '\n\b':
+            if letter in "\n\b":
                 send(letter)
             else:
                 _get_os_keyboard().type_unicode(letter)
@@ -1120,8 +1176,12 @@ def wait(hotkey=None, suppress=False, trigger_on_release=False):
     """
     if hotkey:
         lock = _Event()
-        remove = add_hotkey(hotkey, lambda: lock.set(
-        ), suppress=suppress, trigger_on_release=trigger_on_release)
+        remove = add_hotkey(
+            hotkey,
+            lambda: lock.set(),
+            suppress=suppress,
+            trigger_on_release=trigger_on_release,
+        )
         lock.wait()
         remove_hotkey(remove)
     else:
@@ -1155,15 +1215,18 @@ def get_hotkey_name(names=None):
             names = [e.name for e in _pressed_events.values()]
     else:
         names = [normalize_name(name) for name in names]
-    clean_names = set(e.replace('left ', '').replace(
-        'right ', '').replace('+', 'plus') for e in names)
+    clean_names = set(
+        e.replace("left ", "").replace("right ", "").replace("+", "plus") for e in names
+    )
     # https://developer.apple.com/macos/human-interface-guidelines/input-and-output/keyboard/
     # > List modifier keys in the correct order. If you use more than one modifier key in a
     # > hotkey, always list them in this order: Control, Option, Shift, Command.
-    modifiers = ['ctrl', 'alt', 'shift', 'windows']
-    def sorting_key(k): return (modifiers.index(k)
-                                if k in modifiers else 5, str(k))
-    return '+'.join(sorted(clean_names, key=sorting_key))
+    modifiers = ["ctrl", "alt", "shift", "windows"]
+
+    def sorting_key(k):
+        return (modifiers.index(k) if k in modifiers else 5, str(k))
+
+    return "+".join(sorted(clean_names, key=sorting_key))
 
 
 def read_event(suppress=False):
@@ -1200,15 +1263,17 @@ def read_hotkey(suppress=True):
         # "ctrl+shift+p"
     """
     queue = _queue.Queue()
-    def fn(e): return queue.put(e) or e.event_type == KEY_DOWN
+
+    def fn(e):
+        return queue.put(e) or e.event_type == KEY_DOWN
+
     hooked = hook(fn, suppress=suppress)
     while True:
         event = queue.get()
         if event.event_type == KEY_UP:
             unhook(hooked)
             with _pressed_events_lock:
-                names = [e.name for e in _pressed_events.values()] + \
-                    [event.name]
+                names = [e.name for e in _pressed_events.values()] + [event.name]
             return get_hotkey_name(names)
 
 
@@ -1229,33 +1294,37 @@ def get_typed_strings(events, allow_backspace=True):
 
         get_type_strings(record()) #-> ['This is what', 'I recorded', '']
     """
-    backspace_name = 'delete' if _platform.system() == 'Darwin' else 'backspace'
+    backspace_name = "delete" if _platform.system() == "Darwin" else "backspace"
 
     shift_pressed = False
     capslock_pressed = False
-    string = ''
+    string = ""
     for event in events:
         name = event.name
 
         # Space is the only key that we _parse_hotkey to the spelled out name
         # because of legibility. Now we have to undo that.
-        if event.name == 'space':
-            name = ' '
+        if event.name == "space":
+            name = " "
 
-        if 'shift' in event.name:
-            shift_pressed = event.event_type == 'down'
-        elif event.name == 'caps lock' and event.event_type == 'down':
+        if "shift" in event.name:
+            shift_pressed = event.event_type == "down"
+        elif event.name == "caps lock" and event.event_type == "down":
             capslock_pressed = not capslock_pressed
-        elif allow_backspace and event.name == backspace_name and event.event_type == 'down':
+        elif (
+            allow_backspace
+            and event.name == backspace_name
+            and event.event_type == "down"
+        ):
             string = string[:-1]
-        elif event.event_type == 'down':
+        elif event.event_type == "down":
             if len(name) == 1:
                 if shift_pressed ^ capslock_pressed:
                     name = name.upper()
                 string = string + name
             else:
                 yield string
-                string = ''
+                string = ""
     yield string
 
 
@@ -1288,7 +1357,7 @@ def stop_recording():
     return list(recorded_events_queue.queue)
 
 
-def record(until='escape', suppress=False, trigger_on_release=False):
+def record(until="escape", suppress=False, trigger_on_release=False):
     """
     Records all keyboard events from all keyboards until the user presses the
     given hotkey. Then returns the list of events recorded, of type
@@ -1342,7 +1411,9 @@ replay = play
 _word_listeners = {}
 
 
-def add_word_listener(word, callback, triggers=['space'], match_suffix=False, timeout=2):
+def add_word_listener(
+    word, callback, triggers=["space"], match_suffix=False, timeout=2
+):
     """
     Invokes a callback every time a sequence of characters is typed (e.g. 'pet')
     and followed by a trigger key (e.g. space). Modifiers (e.g. alt, ctrl,
@@ -1368,7 +1439,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
     Note: word matches are **case sensitive**.
     """
     state = _State()
-    state.current = ''
+    state.current = ""
     state.time = -1
 
     def handler(event):
@@ -1377,16 +1448,17 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
             return
 
         if timeout and event.time - state.time > timeout:
-            state.current = ''
+            state.current = ""
         state.time = event.time
 
         matched = state.current == word or (
-            match_suffix and state.current.endswith(word))
+            match_suffix and state.current.endswith(word)
+        )
         if name in triggers and matched:
             callback()
-            state.current = ''
+            state.current = ""
         elif len(name) > 1:
-            state.current = ''
+            state.current = ""
         else:
             state.current += name
 
@@ -1400,6 +1472,7 @@ def add_word_listener(word, callback, triggers=['space'], match_suffix=False, ti
             del _word_listeners[handler]
         if remove in _word_listeners:
             del _word_listeners[remove]
+
     _word_listeners[word] = _word_listeners[handler] = _word_listeners[remove] = remove
     # TODO: allow multiple word listeners and removing them correctly.
     return remove
@@ -1431,9 +1504,14 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
 
     For more details see `add_word_listener`.
     """
-    replacement = '\b'*(len(source_text)+1) + replacement_text
-    def callback(): return write(replacement)
-    return add_word_listener(source_text, callback, match_suffix=match_suffix, timeout=timeout)
+    replacement = "\b" * (len(source_text) + 1) + replacement_text
+
+    def callback():
+        return write(replacement)
+
+    return add_word_listener(
+        source_text, callback, match_suffix=match_suffix, timeout=timeout
+    )
 
 
 # Aliases.

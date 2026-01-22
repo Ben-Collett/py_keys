@@ -1,10 +1,10 @@
 test: tests
 tests:
-	python2 -m coverage run -m keyboard._keyboard_tests
-	python2 -m coverage run -am keyboard._mouse_tests
+	python -m coverage run -m keyboard._keyboard_tests
+	python -m coverage run -am keyboard._mouse_tests
 	python -m coverage run -am keyboard._keyboard_tests
 	python -m coverage run -am keyboard._mouse_tests
-	python -m coverage report && coverage3 html
+	python -m coverage report && coverage html
 
 build: tests keyboard setup.py README.md CHANGES.md MANIFEST.in
 	python ../docstring2markdown/docstring2markdown.py keyboard "https://github.com/boppreh/keyboard/blob/master" > README.md
