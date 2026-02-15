@@ -7,14 +7,19 @@ def main():
     keyboard.init(
         linux_collision_safety_mode=keyboard.LinuxCollisionSafetyModes.PATIENT,
         windows_synetic_mode=keyboard.WindowsSyntheticModes.REAL)
-    space_queue = Queue()
+    # space_queue = Queue()
 
     b = RingBuffer(capacity=100)
 
     def add_key(event: keyboard.KeyboardEvent):
         print(b)
+
+        # if event.event_type == keyboard.KEY_DOWN:
+        #     print(event.name, event.modifiers)
+
         if event.event_type == keyboard.KEY_UP:
 
+            print(event.name, event.event_type)
             # print("a", event.name)
             if event.name == "space":
                 # print("spaced")
@@ -25,6 +30,9 @@ def main():
                     for i in range(3):
                         keyboard.press_and_release("backspace")
 
+                    # to_write = "hEelLlo ;.?#@"
+                    # to_write = r'd'
+                    # to_write = "that "
                     to_write = r"d!i[F!fere?nt [{}] \ "
                     # to_write = "d!iF!fere?nt "
                     keyboard.write(to_write)

@@ -767,7 +767,9 @@ canonical_names = {
     "MillSign": "₥",
     "minplus": "+",
     "minus": "-",
-    "minus": "−",
+    # TODO: figure out what is going in with this, not a '-' bt is a minus '-' and the unicode 8772 is a chinese character
+    # "minus": "−",
+
     "minute": "′",
     "Msmall": "",
     "msuperior": "",
@@ -1190,6 +1192,7 @@ canonical_names = {
     "zeta": "ζ",
     "Zeta": "Ζ",
     "Zsmall": "",
+    "super": "windows"
 }
 sided_modifiers = {"ctrl", "alt", "shift", "windows"}
 all_modifiers = (
@@ -1230,7 +1233,8 @@ def normalize_name(name):
     """
     if not name or not isinstance(name, str):
         raise ValueError(
-            "Can only normalize non-empty string names. Unexpected " + repr(name)
+            "Can only normalize non-empty string names. Unexpected " +
+            repr(name)
         )
 
     if len(name) > 1:

@@ -7,6 +7,8 @@ from ._canonical_names import all_modifiers, sided_modifiers, normalize_name
 from ._generic import GenericListener as _GenericListener
 from ._keyboard_event import KEY_DOWN, KEY_UP, KeyboardEvent
 from ._windows_synthetic_modes import WindowsSyntheticModes
+from ._keyboard_modes import KeyboardModes
+from ._keyboard_modes import auto_select_keyboard_mode as _auto_select_keyboard_mode
 import warnings
 import time as _time
 from enum import Enum
@@ -265,7 +267,8 @@ def is_modifier(key):
         return key in all_modifiers
     else:
         if not _modifier_scan_codes:
-            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers)
+            scan_codes = (key_to_scan_codes(name, False)
+                          for name in all_modifiers)
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
@@ -440,28 +443,38 @@ _listener = None
 _initialized = False
 
 
+_keyboard_mode = None
+
+
 def init(
     linux_collision_safety_mode=None,
     windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
+    keyboard_mode=None
 ):
-    global _os_keyboard, _listener, _initialized
+    global _os_keyboard, _listener, _initialized, _keyboard_mode
 
     if _initialized:
         raise Exception("double init call")
 
-    if _platform.system() == "Windows":
-        from . import _winkeyboard as keyboard
+    if keyboard_mode is not None:
+        _keyboard_mode = keyboard_mode
+    else:
+        _keyboard_mode = _auto_select_keyboard_mode()
 
+    if _keyboard_mode == KeyboardModes.WINDOWS:
+        from . import _winkeyboard as keyboard
         keyboard.synthetic_mode = windows_synetic_mode
-    elif _platform.system() == "Linux":
+    elif _keyboard_mode == KeyboardModes.LINUX:
         from . import _nixkeyboard as keyboard
-    elif _platform.system() == "Darwin":
+    elif _keyboard_mode == KeyboardModes.X11:
+        from . import _x11keyboard as keyboard
+    elif _keyboard_mode == KeyboardModes.MAC:
         try:
             from . import _darwinkeyboard as keyboard
         except ImportError:
             # This can happen during setup if pyobj wasn't already installed
             pass
-    else:
+    elif _keyboard_mode == KeyboardModes.UNKNOWN:
         raise OSError("Unsupported platform '{}'".format(_platform.system()))
 
     # must set _os_keyboard before creating listener and setting safety mode
@@ -472,6 +485,7 @@ def init(
 
     _listener = _KeyboardListener()
     _initialized = True
+    print(_keyboard_mode)
 
 
 def _get_os_keyboard():
@@ -504,7 +518,8 @@ def key_to_scan_codes(key, error_if_missing=True):
         return sum((key_to_scan_codes(i) for i in key), ())
     elif not _is_str(key):
         raise ValueError(
-            "Unexpected key type " + str(type(key)) + ", value (" + repr(key) + ")"
+            "Unexpected key type " +
+            str(type(key)) + ", value (" + repr(key) + ")"
         )
 
     normalized = normalize_name(key)
@@ -529,7 +544,8 @@ def key_to_scan_codes(key, error_if_missing=True):
         e = exception
 
     if not t and error_if_missing:
-        raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), e)
+        raise ValueError(
+            "Key {} is not mapped to any known key.".format(repr(key)), e)
     else:
         return t
 
@@ -1105,7 +1121,8 @@ def restore_modifiers(scan_codes):
     """
     Like `restore_state`, but only restores modifier keys.
     """
-    restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
+    restore_state(
+        (scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
 
 def write(text, delay=0, restore_state_after=True, exact=None):
@@ -1273,7 +1290,8 @@ def read_hotkey(suppress=True):
         if event.event_type == KEY_UP:
             unhook(hooked)
             with _pressed_events_lock:
-                names = [e.name for e in _pressed_events.values()] + [event.name]
+                names = [e.name for e in _pressed_events.values()] + \
+                    [event.name]
             return get_hotkey_name(names)
 
 
@@ -1374,12 +1392,16 @@ def record(until="escape", suppress=False, trigger_on_release=False):
 
 # on linux using evdev stops collisions from keyboards by making keyboard wait
 def patient_collision_safe_mode():
-    if _platform.system() == "Linux":
+    if not _initialized:
+        init()
+    if _keyboard_mode == KeyboardModes.LINUX:
         _get_os_keyboard().patient_type = True
 
 
 def end_patient_collision_safe_mode():
-    if _platform.system() == "Linux":
+    if not _initialized:
+        init()
+    if _keyboard_mode == KeyboardModes.LINUX:
         _get_os_keyboard().patient_type = True
 
 
