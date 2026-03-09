@@ -8,10 +8,10 @@ def backspace_and_write(s: str):
     keyboard.write(s)
 
 
-# to_write = "THIS_IS_A_VERY_LONG_STRING_WITH_UNDERSCORES_AND_CAPITAL_LETTERS_WHY_TO_TEST_OFCOURSE_I_WONDER_IF_IT_WILL_WORK_OUT_OKAY_OR_IF_IT_WILL_FAIL_HORRIBLY"
+to_write = "THIS_IS_A_VERY_LONG_STRING_WITH_UNDERSCORES_AND_CAPITAL_LETTERS_WHY_TO_TEST_OFCOURSE_I_WONDER_IF_IT_WILL_WORK_OUT_OKAY_OR_IF_IT_WILL_FAIL_HORRIBLY"
 # to_write = "this is a very long string with no underscords or capitial letters why to test ofcourse i wonder if it will work out okay or if it will fail horribly"
 # to_write = "short"
-to_write = "slightly longer"
+# to_write = "slightly longer"
 
 
 def main():

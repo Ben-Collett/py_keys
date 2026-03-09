@@ -449,7 +449,7 @@ _keyboard_mode = None
 def init(
     linux_collision_safety_mode=None,
     windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
-    keyboard_mode=None
+    keyboard_mode=None,
 ):
     global _os_keyboard, _listener, _initialized, _keyboard_mode
 
@@ -463,6 +463,7 @@ def init(
 
     if _keyboard_mode == KeyboardModes.WINDOWS:
         from . import _winkeyboard as keyboard
+
         keyboard.synthetic_mode = windows_synetic_mode
     elif _keyboard_mode == KeyboardModes.LINUX:
         from . import _nixkeyboard as keyboard
@@ -1161,26 +1162,43 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             if delay:
                 _time.sleep(delay)
     else:
+        last_modifiers = None
+
+        def release_all_last_modifiers():
+            nonlocal last_modifiers
+            if last_modifiers:
+                for modifier in last_modifiers:
+                    release(modifier)
+                last_modifiers = None
+
         for letter in text:
             try:
                 entries = _get_os_keyboard().map_name(normalize_name(letter))
                 scan_code, modifiers = next(iter(entries))
             except (KeyError, ValueError, StopIteration):
-                # Doesn't work on wayland
+                # doesn't work on wayland
+                release_all_last_modifiers()
                 _get_os_keyboard().type_unicode(letter)
                 continue
 
-            for modifier in modifiers:
-                press(modifier)
+            # TODO: minioptmization only release modifiers that are no longer needed same for pressing
+            if last_modifiers is not None and set(last_modifiers) != set(modifiers):
+                release_all_last_modifiers()
+
+            if last_modifiers is None:
+                for modifier in modifiers:
+                    press(modifier)
+                last_modifiers = modifiers
 
             _get_os_keyboard().press(scan_code)
             _get_os_keyboard().release(scan_code)
 
-            for modifier in modifiers:
-                release(modifier)
-
             if delay:
                 _time.sleep(delay)
+
+        if last_modifiers:
+            for modifier in last_modifiers:
+                release(modifier)
 
     if restore_state_after:
         restore_modifiers(state)
