@@ -486,7 +486,6 @@ def init(
 
     _listener = _KeyboardListener()
     _initialized = True
-    print(_keyboard_mode)
 
 
 def _get_os_keyboard():
