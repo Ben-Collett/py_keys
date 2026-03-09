@@ -1126,6 +1126,39 @@ def restore_modifiers(scan_codes):
         (scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
 
+def write_list(keys: list[str], delay=0):
+    """
+    takes a list of characters and keys and writes them
+    ex: ["h","i"," ","left","backspace","right"]
+    will output: "h "
+    each character you want to type must only be one character long in the list
+
+    writing multiple characters in a row is chunked
+    i.e. only makes one call to write
+    which improves performance.
+    """
+    chunk = ""
+
+    def process_chunk():
+        write(chunk, delay)
+
+    def clear_chunk():
+        nonlocal chunk
+        chunk = ""
+
+    for key in keys:
+        if len(key) == 1:
+            chunk += key
+        else:
+            process_chunk()
+            clear_chunk()
+            press(key)
+            release(key)
+            _time.sleep(delay)
+
+    process_chunk()
+
+
 def write(text, delay=0, restore_state_after=True, exact=None):
     """
     Sends artificial keyboard events to the OS, simulating the typing of a given
@@ -1159,8 +1192,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                 send(letter)
             else:
                 _get_os_keyboard().type_unicode(letter)
-            if delay:
-                _time.sleep(delay)
+            _time.sleep(delay)
     else:
         last_modifiers = None
 
@@ -1193,8 +1225,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
             _get_os_keyboard().press(scan_code)
             _get_os_keyboard().release(scan_code)
 
-            if delay:
-                _time.sleep(delay)
+            _time.sleep(delay)
 
         if last_modifiers:
             for modifier in last_modifiers:
