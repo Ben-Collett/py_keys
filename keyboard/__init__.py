@@ -267,8 +267,7 @@ def is_modifier(key):
         return key in all_modifiers
     else:
         if not _modifier_scan_codes:
-            scan_codes = (key_to_scan_codes(name, False)
-                          for name in all_modifiers)
+            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers)
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
@@ -518,8 +517,7 @@ def key_to_scan_codes(key, error_if_missing=True):
         return sum((key_to_scan_codes(i) for i in key), ())
     elif not _is_str(key):
         raise ValueError(
-            "Unexpected key type " +
-            str(type(key)) + ", value (" + repr(key) + ")"
+            "Unexpected key type " + str(type(key)) + ", value (" + repr(key) + ")"
         )
 
     normalized = normalize_name(key)
@@ -544,8 +542,7 @@ def key_to_scan_codes(key, error_if_missing=True):
         e = exception
 
     if not t and error_if_missing:
-        raise ValueError(
-            "Key {} is not mapped to any known key.".format(repr(key)), e)
+        raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), e)
     else:
         return t
 
@@ -1121,8 +1118,7 @@ def restore_modifiers(scan_codes):
     """
     Like `restore_state`, but only restores modifier keys.
     """
-    restore_state(
-        (scan_code for scan_code in scan_codes if is_modifier(scan_code)))
+    restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
 
 def write_list(keys: list[str], delay=0):
@@ -1197,7 +1193,7 @@ def write(text, delay=0, restore_state_after=True, exact=None):
 
         def release_all_last_modifiers():
             nonlocal last_modifiers
-            if last_modifiers:
+            if last_modifiers is not None:
                 for modifier in last_modifiers:
                     release(modifier)
                 last_modifiers = None
@@ -1338,8 +1334,7 @@ def read_hotkey(suppress=True):
         if event.event_type == KEY_UP:
             unhook(hooked)
             with _pressed_events_lock:
-                names = [e.name for e in _pressed_events.values()] + \
-                    [event.name]
+                names = [e.name for e in _pressed_events.values()] + [event.name]
             return get_hotkey_name(names)
 
 
