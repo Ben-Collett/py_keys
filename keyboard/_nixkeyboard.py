@@ -16,23 +16,23 @@ patient_type = False
 
 
 def cleanup_key(name):
-    """ Formats a dumpkeys format to our standard. """
-    name = name.lstrip('+')
-    is_keypad = name.startswith('KP_')
-    for mod in ('Meta_', 'Control_', 'dead_', 'KP_'):
+    """Formats a dumpkeys format to our standard."""
+    name = name.lstrip("+")
+    is_keypad = name.startswith("KP_")
+    for mod in ("Meta_", "Control_", "dead_", "KP_"):
         if name.startswith(mod):
-            name = name[len(mod):]
+            name = name[len(mod) :]
 
     # Dumpkeys is weird like that.
-    if name == 'Remove':
-        name = 'Delete'
-    elif name == 'Delete':
-        name = 'Backspace'
+    if name == "Remove":
+        name = "Delete"
+    elif name == "Delete":
+        name = "Backspace"
 
-    if name.endswith('_r'):
-        name = 'right ' + name[:-2]
-    if name.endswith('_l'):
-        name = 'left ' + name[:-2]
+    if name.endswith("_r"):
+        name = "right " + name[:-2]
+    if name.endswith("_l"):
+        name = "left " + name[:-2]
 
     return normalize_name(name), is_keypad
 
@@ -43,7 +43,7 @@ def cleanup_modifier(modifier):
         return modifier
     if modifier[:-1] in all_modifiers:
         return modifier[:-1]
-    raise ValueError('Unknown modifier {}'.format(modifier))
+    raise ValueError("Unknown modifier {}".format(modifier))
 
 
 """
@@ -57,10 +57,10 @@ from_name = defaultdict(list)
 keypad_scan_codes = set()
 
 MODIFIER_WEIGHTS = {
-    'shift': 1,
-    'alt gr': 2,
-    'alt': 3,
-    'ctrl': 4,
+    "shift": 1,
+    "alt gr": 2,
+    "alt": 3,
+    "ctrl": 4,
 }
 
 
@@ -98,53 +98,54 @@ def build_tables():
         return
 
     modifiers_bits = {
-        'shift': 1,
-        'alt gr': 2,
-        'ctrl': 4,
-        'alt': 8,
+        "shift": 1,
+        "alt gr": 2,
+        "ctrl": 4,
+        "alt": 8,
     }
-    keycode_template = r'^keycode\s+(\d+)\s+=(.*?)$'
+    keycode_template = r"^keycode\s+(\d+)\s+=(.*?)$"
     try:
-        dump = check_output(['dumpkeys', '--keys-only'],
-                            universal_newlines=True)
+        dump = check_output(["dumpkeys", "--keys-only"], universal_newlines=True)
     except CalledProcessError as e:
         if e.returncode == 1:
             raise ValueError(
-                'Failed to run dumpkeys to get key names. Check if your user is part of the "tty" group, and if not, add it with "sudo usermod -a -G tty USER".')
+                'Failed to run dumpkeys to get key names. Check if your user is part of the "tty" group, and if not, add it with "sudo usermod -a -G tty USER".'
+            )
         else:
             raise
 
     for str_scan_code, str_names in re.findall(keycode_template, dump, re.MULTILINE):
         scan_code = int(str_scan_code)
         for i, str_name in enumerate(str_names.strip().split()):
-            modifiers = tuple(sorted(modifier for modifier,
-                              bit in modifiers_bits.items() if i & bit))
+            modifiers = tuple(
+                sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit)
+            )
             name, is_keypad = cleanup_key(str_name)
             register_key((scan_code, modifiers), name)
             if is_keypad:
                 keypad_scan_codes.add(scan_code)
-                register_key((scan_code, modifiers), 'keypad ' + name)
+                register_key((scan_code, modifiers), "keypad " + name)
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
     # 126 = right win.
-    if (125, ()) not in to_name or to_name[(125, ())] == ['alt']:
+    if (125, ()) not in to_name or to_name[(125, ())] == ["alt"]:
         to_name[(125, ())].clear()
-        if (125, ()) in from_name['alt']:
-            from_name['alt'].remove((125, ()))
-        register_key((125, ()), 'windows')
-    if (126, ()) not in to_name or to_name[(126, ())] == ['alt']:
+        if (125, ()) in from_name["alt"]:
+            from_name["alt"].remove((125, ()))
+        register_key((125, ()), "windows")
+    if (126, ()) not in to_name or to_name[(126, ())] == ["alt"]:
         to_name[(126, ())].clear()
-        if (126, ()) in from_name['alt']:
-            from_name['alt'].remove((126, ()))
-        register_key((126, ()), 'windows')
+        if (126, ()) in from_name["alt"]:
+            from_name["alt"].remove((126, ()))
+        register_key((126, ()), "windows")
 
     # The menu key is usually skipped altogether, so we also add it manually.
     if (127, ()) not in to_name:
-        register_key((127, ()), 'menu')
+        register_key((127, ()), "menu")
 
-    synonyms_template = r'^(\S+)\s+for (.+)$'
-    dump = check_output(['dumpkeys', '--long-info'], universal_newlines=True)
+    synonyms_template = r"^(\S+)\s+for (.+)$"
+    dump = check_output(["dumpkeys", "--long-info"], universal_newlines=True)
     for synonym_str, original_str in re.findall(synonyms_template, dump, re.MULTILINE):
         synonym, _ = cleanup_key(synonym_str)
         original, _ = cleanup_key(original_str)
@@ -160,7 +161,7 @@ def build_device():
     global device
     if device:
         return
-    device = aggregate_devices('kbd')
+    device = aggregate_devices("kbd")
 
 
 _down_keys = None
@@ -182,7 +183,7 @@ def listen(callback):
     build_tables()
 
     while True:
-        time, type, code, value, device_id = device.read_event()
+        time, type, code, value, device_path, device_name = device.read_event()
 
         if type != EV_KEY:
             continue
@@ -191,8 +192,11 @@ def listen(callback):
         event_type = KEY_DOWN if value else KEY_UP  # 0 = UP, 1 = DOWN, 2 = HOLD
 
         pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
-        names = to_name[(scan_code, pressed_modifiers_tuple)
-                        ] or to_name[(scan_code, ())] or ['unknown']
+        names = (
+            to_name[(scan_code, pressed_modifiers_tuple)]
+            or to_name[(scan_code, ())]
+            or ["unknown"]
+        )
         name = names[0]
         if name in all_modifiers:
             if event_type == KEY_DOWN:
@@ -209,8 +213,18 @@ def listen(callback):
                 del _down_keys[scan_code]
                 with _keys_cond:
                     _keys_cond.notify_all()
-        callback(KeyboardEvent(event_type=event_type, scan_code=scan_code, name=name,
-                 time=time, device=device_id, is_keypad=is_keypad, modifiers=pressed_modifiers_tuple))
+        callback(
+            KeyboardEvent(
+                event_type=event_type,
+                scan_code=scan_code,
+                name=name,
+                time=time,
+                device=device_path,
+                device_name=device_name,
+                is_keypad=is_keypad,
+                modifiers=pressed_modifiers_tuple,
+            )
+        )
 
 
 def write_event(scan_code, is_down):
@@ -227,14 +241,14 @@ def map_name(name):
 
     if name.isalpha() and name.isupper():
         for scan_code, modifiers in from_name[name.lower()]:
-            yield scan_code, tuple(sorted(modifiers + ('shift',)))
+            yield scan_code, tuple(sorted(modifiers + ("shift",)))
         return
     else:
         for entry in from_name[name]:
             yield entry
 
-    parts = name.split(' ', 1)
-    if len(parts) > 1 and parts[0] in ('left', 'right'):
+    parts = name.split(" ", 1)
+    if len(parts) > 1 and parts[0] in ("left", "right"):
         for entry in from_name[parts[1]]:
             yield entry
 
@@ -255,9 +269,9 @@ design
 
 def type_unicode(character):
     codepoint = ord(character)
-    hexadecimal = hex(codepoint)[len('0x'):]
+    hexadecimal = hex(codepoint)[len("0x") :]
 
-    for key in ['ctrl', 'shift', 'u']:
+    for key in ["ctrl", "shift", "u"]:
         scan_code, _ = next(map_name(key))
         press(scan_code)
 
@@ -266,12 +280,14 @@ def type_unicode(character):
         press(scan_code)
         release(scan_code)
 
-    for key in ['ctrl', 'shift', 'u']:
+    for key in ["ctrl", "shift", "u"]:
         scan_code, _ = next(map_name(key))
         release(scan_code)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+
     def p(e):
         print(e)
+
     listen(p)

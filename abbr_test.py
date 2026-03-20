@@ -12,7 +12,7 @@ def main():
     b = RingBuffer(capacity=100)
 
     def add_key(event: keyboard.KeyboardEvent):
-        print(b)
+        print(event.device_name)
 
         # if event.event_type == keyboard.KEY_DOWN:
         #     print(event.name, event.modifiers)
