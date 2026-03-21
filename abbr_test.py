@@ -1,4 +1,3 @@
-from queue import Queue
 from buffer import RingBuffer
 import keyboard
 
@@ -6,7 +5,9 @@ import keyboard
 def main():
     keyboard.init(
         linux_collision_safety_mode=keyboard.LinuxCollisionSafetyModes.PATIENT,
-        windows_synetic_mode=keyboard.WindowsSyntheticModes.REAL)
+        windows_synetic_mode=keyboard.WindowsSyntheticModes.REAL,
+        device_name="abbr test keyboard"
+    )
     # space_queue = Queue()
 
     b = RingBuffer(capacity=100)

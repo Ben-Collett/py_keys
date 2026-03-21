@@ -37,7 +37,7 @@ except BaseException:
     _lib_udev = None
 
 
-def make_uinput():
+def make_uinput(name: str):
     if not os.path.exists("/dev/uinput"):
         raise IOError("No uinput module found.")
 
@@ -46,7 +46,7 @@ def make_uinput():
     # Requires uinput driver, but it's usually available.
     uinput = open("/dev/uinput", "wb")
 
-    make_keyboard(uinput)
+    make_keyboard(uinput, name)
 
     return uinput
 
@@ -99,8 +99,7 @@ class EventDevice(object):
 
     def read_event(self):
         data = self.input_file.read(struct.calcsize(event_bin_format))
-        seconds, microseconds, type, code, value = struct.unpack(
-            event_bin_format, data)
+        seconds, microseconds, type, code, value = struct.unpack(event_bin_format, data)
 
         return (
             seconds + microseconds / 1e6,
@@ -120,8 +119,7 @@ class EventDevice(object):
         )
 
         # Send a sync event to ensure other programs update.
-        sync_event = struct.pack(
-            event_bin_format, seconds, microseconds, EV_SYN, 0, 0)
+        sync_event = struct.pack(event_bin_format, seconds, microseconds, EV_SYN, 0, 0)
 
         self.output_file.write(data_event + sync_event)
         self.output_file.flush()
@@ -196,19 +194,18 @@ def list_devices_from_proc(type_name):
 
 def list_devices_from_by_id(name_suffix, by_id=True):
     for path in glob(
-        "/dev/input/{}/*-event-{}".format(
-            "by-id" if by_id else "by-path", name_suffix)
+        "/dev/input/{}/*-event-{}".format("by-id" if by_id else "by-path", name_suffix)
     ):
         yield EventDevice(path)
 
 
-def aggregate_devices(type_name):
+def aggregate_devices(type_name, name: str):
     # Some systems have multiple keyboards with different range of allowed keys
     # on each one, like a notebook with a "keyboard" device exclusive for the
     # power button. Instead of figuring out which keyboard allows which key to
     # send events, we create a fake device and send all events through there.
     try:
-        uinput = make_uinput()
+        uinput = make_uinput(name)
         fake_device = EventDevice("uinput Fake Device")
         fake_device._input_file = uinput
         fake_device._output_file = uinput

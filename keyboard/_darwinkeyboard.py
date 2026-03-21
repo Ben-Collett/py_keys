@@ -112,7 +112,8 @@ class KeyMap(object):
         Carbon.TISCopyCurrentASCIICapableKeyboardLayoutInputSource.restype = (
             ctypes.c_void_p
         )
-        Carbon.TISGetInputSourceProperty.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        Carbon.TISGetInputSourceProperty.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p]
         Carbon.TISGetInputSourceProperty.restype = ctypes.c_void_p
         Carbon.UCKeyTranslate.argtypes = [
             ctypes.c_void_p,
@@ -185,9 +186,11 @@ class KeyMap(object):
                 shifted_char,
             )
 
-            shifted_key = "".join(chr(shifted_char[i]) for i in range(char_count.value))
+            shifted_key = "".join(
+                chr(shifted_char[i]) for i in range(char_count.value))
 
-            self.layout_specific_keys[key_code] = (non_shifted_key, shifted_key)
+            self.layout_specific_keys[key_code] = (
+                non_shifted_key, shifted_key)
         # Cleanup
         Carbon.CFRelease(klis)
 
@@ -392,7 +395,8 @@ class KeyEventListener(object):
         )
         loopsource = Quartz.CFMachPortCreateRunLoopSource(None, self.tap, 0)
         loop = Quartz.CFRunLoopGetCurrent()
-        Quartz.CFRunLoopAddSource(loop, loopsource, Quartz.kCFRunLoopDefaultMode)
+        Quartz.CFRunLoopAddSource(
+            loop, loopsource, Quartz.kCFRunLoopDefaultMode)
         Quartz.CGEventTapEnable(self.tap, True)
 
         while self.listening:
@@ -441,12 +445,14 @@ class KeyEventListener(object):
                     else:
                         if scan_code in self.modifier_scancodes[key_name_suffix]:
                             event_type = "up"
-                            self.modifier_scancodes[key_name_suffix].remove(scan_code)
+                            self.modifier_scancodes[key_name_suffix].remove(
+                                scan_code)
                             for suffix in key_name_suffixes:
                                 self.pressed_modifiers.discard(suffix)
                         else:
                             event_type = "down"
-                            self.modifier_scancodes[key_name_suffix].append(scan_code)
+                            self.modifier_scancodes[key_name_suffix].append(
+                                scan_code)
                             for suffix in key_name_suffixes:
                                 self.pressed_modifiers.add(suffix)
                     if event_found:
@@ -505,7 +511,8 @@ def listen(callback):
 
 
 def type_unicode(character):
-    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(Quartz.kCGEventSourceStateHIDSystemState)
+    OUTPUT_SOURCE = Quartz.CGEventSourceCreate(
+        Quartz.kCGEventSourceStateHIDSystemState)
     # Key down
     event = Quartz.CGEventCreateKeyboardEvent(OUTPUT_SOURCE, 0, True)
     Quartz.CGEventKeyboardSetUnicodeString(

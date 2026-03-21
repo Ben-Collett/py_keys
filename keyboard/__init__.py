@@ -11,6 +11,7 @@ from ._keyboard_modes import KeyboardModes
 from ._keyboard_modes import auto_select_keyboard_mode as _auto_select_keyboard_mode
 import warnings
 import time as _time
+from ._global_data import global_data as _global_data
 from enum import Enum
 from threading import Thread as _Thread, Lock as _Lock
 import collections as _collections
@@ -267,7 +268,8 @@ def is_modifier(key):
         return key in all_modifiers
     else:
         if not _modifier_scan_codes:
-            scan_codes = (key_to_scan_codes(name, False) for name in all_modifiers)
+            scan_codes = (key_to_scan_codes(name, False)
+                          for name in all_modifiers)
             _modifier_scan_codes.update(*scan_codes)
         return key in _modifier_scan_codes
 
@@ -449,12 +451,22 @@ def init(
     linux_collision_safety_mode=None,
     windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
     keyboard_mode=None,
+    device_name: str = "PyKeys Virtual Keyboard",
 ):
-    global _os_keyboard, _listener, _initialized, _keyboard_mode
+    global _os_keyboard, _listener, _initialized, _keyboard_mode, _device_name
 
     if _initialized:
         raise Exception("double init call")
 
+    from ._nixutils import MAX_NAME_LENGTH
+
+    if len(device_name) > MAX_NAME_LENGTH:
+        raise ValueError(
+            f"device_name is too long. Maximum length is {
+                MAX_NAME_LENGTH} characters."
+        )
+
+    _global_data.device_name = device_name
     if keyboard_mode is not None:
         _keyboard_mode = keyboard_mode
     else:
@@ -475,13 +487,13 @@ def init(
             # This can happen during setup if pyobj wasn't already installed
             pass
     elif _keyboard_mode == KeyboardModes.UNKNOWN:
-        raise OSError("Unsupported platform '{}'".format(_platform.system()))
+        raise OSError(f"Unsupported platform '{_platform.system()}'")
 
     # must set _os_keyboard before creating listener and setting safety mode
     _os_keyboard = keyboard
 
     if linux_collision_safety_mode == LinuxCollisionSafetyModes.PATIENT:
-        patient_collision_safe_mode()
+        _patient_collision_safe_mode()
 
     _listener = _KeyboardListener()
     _initialized = True
@@ -517,7 +529,8 @@ def key_to_scan_codes(key, error_if_missing=True):
         return sum((key_to_scan_codes(i) for i in key), ())
     elif not _is_str(key):
         raise ValueError(
-            "Unexpected key type " + str(type(key)) + ", value (" + repr(key) + ")"
+            "Unexpected key type " +
+            str(type(key)) + ", value (" + repr(key) + ")"
         )
 
     normalized = normalize_name(key)
@@ -542,7 +555,8 @@ def key_to_scan_codes(key, error_if_missing=True):
         e = exception
 
     if not t and error_if_missing:
-        raise ValueError("Key {} is not mapped to any known key.".format(repr(key)), e)
+        raise ValueError(
+            "Key {} is not mapped to any known key.".format(repr(key)), e)
     else:
         return t
 
@@ -1118,7 +1132,8 @@ def restore_modifiers(scan_codes):
     """
     Like `restore_state`, but only restores modifier keys.
     """
-    restore_state((scan_code for scan_code in scan_codes if is_modifier(scan_code)))
+    restore_state(
+        (scan_code for scan_code in scan_codes if is_modifier(scan_code)))
 
 
 def write_list(keys: list[str], delay=0):
@@ -1334,7 +1349,8 @@ def read_hotkey(suppress=True):
         if event.event_type == KEY_UP:
             unhook(hooked)
             with _pressed_events_lock:
-                names = [e.name for e in _pressed_events.values()] + [event.name]
+                names = [e.name for e in _pressed_events.values()] + \
+                    [event.name]
             return get_hotkey_name(names)
 
 
@@ -1437,6 +1453,12 @@ def record(until="escape", suppress=False, trigger_on_release=False):
 def patient_collision_safe_mode():
     if not _initialized:
         init()
+    _patient_collision_safe_mode()
+
+
+# starts patient safe mode without calling init
+# for use inside the init function
+def _patient_collision_safe_mode():
     if _keyboard_mode == KeyboardModes.LINUX:
         _get_os_keyboard().patient_type = True
 

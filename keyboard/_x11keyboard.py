@@ -10,6 +10,11 @@ import time
 from ._x11_utils import X11, MODIFIER_KEYCODES
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 
+
+def init():
+    pass
+
+
 x = None
 
 x = X11()
@@ -126,10 +131,6 @@ def _update_auto_repeat_settings():
             _auto_repeat_interval_ms = interval_ms
     except Exception:
         pass  # Use defaults if query fails
-
-
-def init():
-    pass
 
 
 def map_name(name):

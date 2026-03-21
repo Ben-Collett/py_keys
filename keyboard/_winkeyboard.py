@@ -123,7 +123,8 @@ class INPUT(ctypes.Structure):
     _fields_ = (("type", DWORD), ("union", _INPUTunion))
 
 
-LowLevelKeyboardProc = WINFUNCTYPE(c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
+LowLevelKeyboardProc = WINFUNCTYPE(
+    c_int, WPARAM, LPARAM, POINTER(KBDLLHOOKSTRUCT))
 
 SetWindowsHookEx = user32.SetWindowsHookExW
 SetWindowsHookEx.argtypes = [c_int, LowLevelKeyboardProc, HINSTANCE, DWORD]
@@ -164,7 +165,8 @@ MapVirtualKey.argtypes = [c_uint, c_uint]
 MapVirtualKey.restype = c_uint
 
 ToUnicode = user32.ToUnicode
-ToUnicode.argtypes = [c_uint, c_uint, keyboard_state_type, LPWSTR, c_int, c_uint]
+ToUnicode.argtypes = [c_uint, c_uint,
+                      keyboard_state_type, LPWSTR, c_int, c_uint]
 ToUnicode.restype = c_int
 
 SendInput = user32.SendInput
@@ -406,9 +408,11 @@ def get_event_names(scan_code, vk, is_extended, modifiers):
         # ToUnicode has the side effect of setting global flags for dead keys.
         # Therefore we need to call it twice to clear those flags.
         # If your 6 and 7 keys are named "^6" and "^7", this is the reason.
-        ToUnicode(vk, scan_code, keyboard_state, unicode_buffer, len(unicode_buffer), 0)
+        ToUnicode(vk, scan_code, keyboard_state,
+                  unicode_buffer, len(unicode_buffer), 0)
 
-    name_ret = GetKeyNameText(scan_code << 16 | is_extended << 24, name_buffer, 1024)
+    name_ret = GetKeyNameText(
+        scan_code << 16 | is_extended << 24, name_buffer, 1024)
     if name_ret and name_buffer.value:
         yield name_buffer.value
 
@@ -473,7 +477,8 @@ def _setup_name_tables():
         for extended in [0, 1]:
             for modifiers in distinct_modifiers:
                 to_name[(541, 162, extended, modifiers)] = ["alt gr"]
-                from_name["alt gr"].append((1, (541, 162, extended, modifiers)))
+                from_name["alt gr"].append(
+                    (1, (541, 162, extended, modifiers)))
 
     modifiers_preference = defaultdict(lambda: 10)
     modifiers_preference.update(
@@ -630,7 +635,8 @@ def prepare_intercept(callback):
                     return 0
                 scan_code = lParam.contents.scan_code
 
-                should_continue = process_key(event_type, vk, scan_code, is_extended)
+                should_continue = process_key(
+                    event_type, vk, scan_code, is_extended)
                 if not should_continue:
                     return -1
         except Exception:
@@ -734,7 +740,7 @@ def type_unicode(character, notify=True):
     releases = []
 
     for i in range(0, len(surrogates), 2):
-        higher, lower = surrogates[i : i + 2]
+        higher, lower = surrogates[i: i + 2]
 
         structure = KEYBDINPUT(
             0,

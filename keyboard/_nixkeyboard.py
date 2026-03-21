@@ -3,6 +3,7 @@ import re
 from threading import Condition
 from collections import defaultdict
 from subprocess import check_output, CalledProcessError
+from ._global_data import global_data
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import all_modifiers, normalize_name
 from ._nixcommon import EV_KEY, aggregate_devices
@@ -21,7 +22,7 @@ def cleanup_key(name):
     is_keypad = name.startswith("KP_")
     for mod in ("Meta_", "Control_", "dead_", "KP_"):
         if name.startswith(mod):
-            name = name[len(mod) :]
+            name = name[len(mod):]
 
     # Dumpkeys is weird like that.
     if name == "Remove":
@@ -105,7 +106,8 @@ def build_tables():
     }
     keycode_template = r"^keycode\s+(\d+)\s+=(.*?)$"
     try:
-        dump = check_output(["dumpkeys", "--keys-only"], universal_newlines=True)
+        dump = check_output(["dumpkeys", "--keys-only"],
+                            universal_newlines=True)
     except CalledProcessError as e:
         if e.returncode == 1:
             raise ValueError(
@@ -118,7 +120,8 @@ def build_tables():
         scan_code = int(str_scan_code)
         for i, str_name in enumerate(str_names.strip().split()):
             modifiers = tuple(
-                sorted(modifier for modifier, bit in modifiers_bits.items() if i & bit)
+                sorted(modifier for modifier,
+                       bit in modifiers_bits.items() if i & bit)
             )
             name, is_keypad = cleanup_key(str_name)
             register_key((scan_code, modifiers), name)
@@ -157,11 +160,11 @@ def build_tables():
 device = None
 
 
-def build_device():
+def build_device(name: str):
     global device
     if device:
         return
-    device = aggregate_devices("kbd")
+    device = aggregate_devices("kbd", name)
 
 
 _down_keys = None
@@ -169,7 +172,7 @@ _down_keys = None
 
 def init():
     global _down_keys
-    build_device()
+    build_device(global_data.device_name)
     build_tables()
     _down_keys = dict()
 
@@ -179,7 +182,7 @@ _keys_cond = Condition()
 
 
 def listen(callback):
-    build_device()
+    build_device(global_data.device_name)
     build_tables()
 
     while True:
@@ -227,8 +230,8 @@ def listen(callback):
         )
 
 
-def write_event(scan_code, is_down):
-    build_device()
+def write_event(scan_code, is_down, name: str):
+    build_device(name)
     if is_down and patient_type and scan_code in _down_keys:
         with _keys_cond:
             while scan_code in _down_keys:
@@ -254,11 +257,11 @@ def map_name(name):
 
 
 def press(scan_code):
-    write_event(scan_code, True)
+    write_event(scan_code, True, global_data.device_name)
 
 
 def release(scan_code):
-    write_event(scan_code, False)
+    write_event(scan_code, False, global_data.device_name)
 
 
 """
@@ -269,7 +272,7 @@ design
 
 def type_unicode(character):
     codepoint = ord(character)
-    hexadecimal = hex(codepoint)[len("0x") :]
+    hexadecimal = hex(codepoint)[len("0x"):]
 
     for key in ["ctrl", "shift", "u"]:
         scan_code, _ = next(map_name(key))
