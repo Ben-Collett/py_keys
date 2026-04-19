@@ -70,7 +70,7 @@ def can_access_console():
 
 def can_use_evdev_uinput():
 
-    # consle access is needed to use dump-keys
+    # console access is needed to use dump-keys
     if not can_access_console():
         return False
 
@@ -96,6 +96,12 @@ def can_use_evdev_uinput():
 
 
 def can_use_x11():
+    if os.environ.get("WAYLAND_DISPLAY"):
+        return False
+
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland":
+        return False
+
     if "DISPLAY" not in os.environ:
         return False
 
