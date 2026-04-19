@@ -248,7 +248,6 @@ def _write_event(scan_code, is_down, name: str, should_be_shifted: bool = False)
             # meaning I need to find a way that handles that but still represses shift if the user releases it
             # so when writing Dhello it will wait for shift to be released before it starts uncessarly
             while scan_code in _down_keys or (not should_be_shifted and _shift_changes(scan_code) and "shift" in pressed_modifiers):
-                print(scan_code_and_mods_to_name[(scan_code,())])
                 _keys_cond.wait()
     device.write_event(EV_KEY, scan_code, int(is_down))
 
