@@ -13,14 +13,14 @@ def main():
     b = RingBuffer(capacity=100)
 
     def add_key(event: keyboard.KeyboardEvent):
-        print(event.device_name)
+        # print(event.device_name)
 
-        # if event.event_type == keyboard.KEY_DOWN:
-        #     print(event.name, event.modifiers)
+        if event.event_type == keyboard.KEY_DOWN:
+            print(event.name, event.modifiers)
 
         if event.event_type == keyboard.KEY_UP:
 
-            print(event.name, event.event_type)
+            # print(event.name, event.event_type)
             # print("a", event.name)
             if event.name == "space":
                 # print("spaced")

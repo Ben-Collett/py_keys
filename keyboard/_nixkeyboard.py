@@ -53,7 +53,7 @@ then parse the output and built a table. For each scan code and modifiers we
 have a list of names and vice-versa.
 """
 
-to_name = defaultdict(list)
+scan_code_and_mods_to_name = defaultdict(list)
 from_name = defaultdict(list)
 keypad_scan_codes = set()
 
@@ -72,8 +72,8 @@ def modifier_cost(modifiers):
 def register_key(key_and_modifiers, name):
     scan_code, modifiers = key_and_modifiers
 
-    if name not in to_name[key_and_modifiers]:
-        to_name[key_and_modifiers].append(name)
+    if name not in scan_code_and_mods_to_name[key_and_modifiers]:
+        scan_code_and_mods_to_name[key_and_modifiers].append(name)
 
     # --- from_name: prefer fewer modifiers ---
     existing = from_name[name]
@@ -95,7 +95,7 @@ def register_key(key_and_modifiers, name):
 
 
 def build_tables():
-    if to_name and from_name:
+    if scan_code_and_mods_to_name and from_name:
         return
 
     modifiers_bits = {
@@ -128,23 +128,25 @@ def build_tables():
             if is_keypad:
                 keypad_scan_codes.add(scan_code)
                 register_key((scan_code, modifiers), "keypad " + name)
+            elif name.islower() and len(name)==1:
+                register_key((scan_code,("shift",)), name.upper())
 
     # dumpkeys consistently misreports the Windows key, sometimes
     # skipping it completely or reporting as 'alt. 125 = left win,
     # 126 = right win.
-    if (125, ()) not in to_name or to_name[(125, ())] == ["alt"]:
-        to_name[(125, ())].clear()
+    if (125, ()) not in scan_code_and_mods_to_name or scan_code_and_mods_to_name[(125, ())] == ["alt"]:
+        scan_code_and_mods_to_name[(125, ())].clear()
         if (125, ()) in from_name["alt"]:
             from_name["alt"].remove((125, ()))
         register_key((125, ()), "windows")
-    if (126, ()) not in to_name or to_name[(126, ())] == ["alt"]:
-        to_name[(126, ())].clear()
+    if (126, ()) not in scan_code_and_mods_to_name or scan_code_and_mods_to_name[(126, ())] == ["alt"]:
+        scan_code_and_mods_to_name[(126, ())].clear()
         if (126, ()) in from_name["alt"]:
             from_name["alt"].remove((126, ()))
         register_key((126, ()), "windows")
 
     # The menu key is usually skipped altogether, so we also add it manually.
-    if (127, ()) not in to_name:
+    if (127, ()) not in scan_code_and_mods_to_name:
         register_key((127, ()), "menu")
 
     synonyms_template = r"^(\S+)\s+for (.+)$"
@@ -196,8 +198,8 @@ def listen(callback):
 
         pressed_modifiers_tuple = tuple(sorted(pressed_modifiers))
         names = (
-            to_name[(scan_code, pressed_modifiers_tuple)]
-            or to_name[(scan_code, ())]
+            scan_code_and_mods_to_name[(scan_code, pressed_modifiers_tuple)]
+            or scan_code_and_mods_to_name[(scan_code, ())]
             or ["unknown"]
         )
         name = names[0]

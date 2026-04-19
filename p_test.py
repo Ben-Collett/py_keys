@@ -2,5 +2,8 @@ import time
 import keyboard
 
 
-time.sleep(2)
-keyboard.write("D F")
+if __name__ == "__main__":
+    time.sleep(.5)
+    keyboard.write("hH")
+    keyboard.press_and_release("backspace")
+
