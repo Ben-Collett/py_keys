@@ -618,14 +618,14 @@ def send(hotkey, do_press=True, do_release=True):
             with _virtually_pressed_events_lock:
                 for scan_codes in step:
                     _virtually_pressed_events.add(scan_codes[0])
-                    _get_os_keyboard().press(scan_codes[0])
+                    _get_os_keyboard().press(scan_codes[0], "shift" in scan_codes[1:] if len(scan_codes) > 1 else False)
 
         if do_release:
             with _virtually_pressed_events_lock:
                 for scan_codes in reversed(step):
                     if scan_codes[0] in _virtually_pressed_events:
                         _virtually_pressed_events.remove(scan_codes[0])
-                    _get_os_keyboard().release(scan_codes[0])
+                    _get_os_keyboard().release(scan_codes[0], "shift" in scan_codes[1:] if len(scan_codes) > 1 else False)
 
 
 def press(hotkey):
@@ -1106,7 +1106,7 @@ def stash_state():
         with _pressed_events_lock:
             state = sorted(_pressed_events)
     for scan_code in state:
-        _get_os_keyboard().release(scan_code)
+        _get_os_keyboard().release(scan_code, False)
     return state
 
 
@@ -1121,9 +1121,9 @@ def restore_state(scan_codes):
         current = set(_pressed_events)
     target = set(scan_codes)
     for scan_code in current - target:
-        _get_os_keyboard().release(scan_code)
+        _get_os_keyboard().release(scan_code, False)
     for scan_code in target - current:
-        _get_os_keyboard().press(scan_code)
+        _get_os_keyboard().press(scan_code, False)
 
     _get_listener().is_replaying = False
 
@@ -1232,8 +1232,8 @@ def write(text, delay=0, restore_state_after=True, exact=None):
                     press(modifier)
                 last_modifiers = modifiers
 
-            _get_os_keyboard().press(scan_code)
-            _get_os_keyboard().release(scan_code)
+            _get_os_keyboard().press(scan_code, "shift" in modifiers)
+            _get_os_keyboard().release(scan_code, "shift" in modifiers)
 
             _time.sleep(delay)
 

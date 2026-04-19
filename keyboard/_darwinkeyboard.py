@@ -485,12 +485,12 @@ def init():
     key_controller = KeyController()
 
 
-def press(scan_code):
+def press(scan_code, should_shift: bool = False):
     """Sends a 'down' event for the specified scan code"""
     key_controller.press(scan_code)
 
 
-def release(scan_code):
+def release(scan_code, should_shift: bool = False):
     """Sends an 'up' event for the specified scan code"""
     key_controller.release(scan_code)
 

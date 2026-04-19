@@ -15,8 +15,8 @@ def main():
     def add_key(event: keyboard.KeyboardEvent):
         # print(event.device_name)
 
-        if event.event_type == keyboard.KEY_DOWN:
-            print(event.name, event.modifiers)
+        # if event.event_type == keyboard.KEY_DOWN:
+        #     print(event.name, event.modifiers)
 
         if event.event_type == keyboard.KEY_UP:
 
@@ -34,7 +34,7 @@ def main():
                     # to_write = "hEelLlo ;.?#@"
                     # to_write = r'd'
                     # to_write = "that "
-                    to_write = r"d!i[F!fere?nt [{}] \ "
+                    to_write = r"D!i[F!fere?nt [{}] \ "
                     # to_write = "d!iF!fere?nt "
                     keyboard.write(to_write)
                     # for ch in to_write:

@@ -721,13 +721,13 @@ def _inject(code, event_type):
     inject_event(event_type, scan_code=code, name=name)
 
 
-def press(code):
+def press(code, shiftpressed: bool = False):
     _send_event(code, 0)
     if _should_inject(code):
         _inject(code, KEY_DOWN)
 
 
-def release(code, notify=True):
+def release(code, shiftpressed: bool = False, notify=True):
     _send_event(code, 2)
 
     if _should_inject(code):

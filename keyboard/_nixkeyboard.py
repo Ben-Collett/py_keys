@@ -232,11 +232,23 @@ def listen(callback):
         )
 
 
-def write_event(scan_code, is_down, name: str):
+
+def _shift_changes(scan_code):
+    normal_version = scan_code_and_mods_to_name[(scan_code,())]
+    shifted_version  = scan_code_and_mods_to_name[(scan_code,("shift",))]
+    return shifted_version != [] and normal_version != shifted_version
+
+def _write_event(scan_code, is_down, name: str, should_be_shifted: bool = False):
     build_device(name)
-    if is_down and patient_type and scan_code in _down_keys:
+    if is_down and patient_type:
         with _keys_cond:
-            while scan_code in _down_keys:
+            # TODO: fix this
+            # there is an edge case here, if the user holds shift then shift is in the _down_keys
+            # then it will still loop because the scancode is in _down keys
+            # meaning I need to find a way that handles that but still represses shift if the user releases it
+            # so when writing Dhello it will wait for shift to be released before it starts uncessarly
+            while scan_code in _down_keys or (not should_be_shifted and _shift_changes(scan_code) and "shift" in pressed_modifiers):
+                print(scan_code_and_mods_to_name[(scan_code,())])
                 _keys_cond.wait()
     device.write_event(EV_KEY, scan_code, int(is_down))
 
@@ -244,6 +256,7 @@ def write_event(scan_code, is_down, name: str):
 def map_name(name):
     build_tables()
 
+    # TODO: might be able to remove condition now
     if name.isalpha() and name.isupper():
         for scan_code, modifiers in from_name[name.lower()]:
             yield scan_code, tuple(sorted(modifiers + ("shift",)))
@@ -258,12 +271,12 @@ def map_name(name):
             yield entry
 
 
-def press(scan_code):
-    write_event(scan_code, True, global_data.device_name)
+def press(scan_code, should_be_shifted: bool = False):
+    _write_event(scan_code, True, global_data.device_name, should_be_shifted)
 
 
-def release(scan_code):
-    write_event(scan_code, False, global_data.device_name)
+def release(scan_code, should_be_shifted: bool = False):
+    _write_event(scan_code, False, global_data.device_name, should_be_shifted)
 
 
 """

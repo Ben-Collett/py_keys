@@ -137,13 +137,13 @@ def map_name(name):
     return x.map_name(name)
 
 
-def press(code: int):
+def press(code: int, shiftpressed: bool = False):
     if code in down_keys:
         x.release_keycode(code)
     x.press_keycode(code)
 
 
-def release(code: int):
+def release(code: int, shiftpressed: bool = False):
     x.release_keycode(code)
 
 
