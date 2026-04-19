@@ -70,7 +70,7 @@ def modifier_cost(modifiers):
 
 
 def register_key(key_and_modifiers, name):
-    scan_code, modifiers = key_and_modifiers
+    _, modifiers = key_and_modifiers
 
     if name not in scan_code_and_mods_to_name[key_and_modifiers]:
         scan_code_and_mods_to_name[key_and_modifiers].append(name)
@@ -256,14 +256,8 @@ def _write_event(scan_code, is_down, name: str, should_be_shifted: bool = False)
 def map_name(name):
     build_tables()
 
-    # TODO: might be able to remove condition now
-    if name.isalpha() and name.isupper():
-        for scan_code, modifiers in from_name[name.lower()]:
-            yield scan_code, tuple(sorted(modifiers + ("shift",)))
-        return
-    else:
-        for entry in from_name[name]:
-            yield entry
+    for entry in from_name[name]:
+        yield entry
 
     parts = name.split(" ", 1)
     if len(parts) > 1 and parts[0] in ("left", "right"):
