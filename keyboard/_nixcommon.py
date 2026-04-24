@@ -3,6 +3,7 @@ import re
 import struct
 from io import BufferedWriter
 import os
+import fcntl
 import signal
 import atexit
 from ._nixlibudev import set_up_libudev, create_udev_monitor, monitor_on_add
@@ -11,6 +12,10 @@ from time import sleep
 from threading import Thread
 from glob import glob
 from multiprocessing import Queue, Process
+
+# EVIOCGRAB ioctl: grab/release exclusive access to evdev device
+# Argument: 1 to grab, 0 to release
+EVIOCGRAB = 0x40044590
 
 # l = long, H = unsigned short,I = unsigned int
 event_bin_format = "llHHI"
@@ -124,10 +129,49 @@ class EventDevice(object):
         self.output_file.write(data_event + sync_event)
         self.output_file.flush()
 
+    def grab(self):
+        """Grab exclusive access to this device. Other processes won't receive events."""
+        fd = self.input_file.fileno()
+        fcntl.ioctl(fd, EVIOCGRAB, 1)
 
-def device_reader_worker(device_paths, event_queue):
+    def ungrab(self):
+        """Release exclusive access to this device."""
+        fd = self.input_file.fileno()
+        fcntl.ioctl(fd, EVIOCGRAB, 0)
+
+
+def device_reader_worker(device_paths, event_queue, command_queue, virtual_name):
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     devices = [EventDevice(p) for p in device_paths]
+
+    # Track grabbed devices - use mutable containers for thread sharing
+    grabbed_devices = set()
+    is_grabbed = [False]  # List as mutable container
+
+    def is_virtual_device(device):
+        """Check if this is the virtual keyboard created by the program."""
+        return device.sysfs_name == virtual_name
+
+    def grab_device(device):
+        """Grab a device if it's not the virtual keyboard."""
+        if is_virtual_device(device):
+            return False
+        try:
+            device.grab()
+            grabbed_devices.add(device.path)
+            return True
+        except OSError:
+            return False
+
+    def ungrab_device(device):
+        """Release a grabbed device."""
+        if device.path not in grabbed_devices:
+            return
+        try:
+            device.ungrab()
+        except OSError:
+            pass
+        grabbed_devices.discard(device.path)
 
     def read_loop(device):
         while True:
@@ -140,7 +184,41 @@ def device_reader_worker(device_paths, event_queue):
         Thread(target=read_loop, args=(d,), daemon=True).start()
 
     def add_device(path):
-        Thread(target=read_loop, args=(EventDevice(path),), daemon=True).start()
+        device = EventDevice(path)
+        devices.append(device)
+        Thread(target=read_loop, args=(device,), daemon=True).start()
+        if is_grabbed[0]:
+            grab_device(device)
+
+    def grab_all_connected():
+        for device in devices:
+            if device.path not in grabbed_devices:
+                grab_device(device)
+
+    def ungrab_all_connected():
+        for path in list(grabbed_devices):
+            for device in devices:
+                if device.path == path:
+                    ungrab_device(device)
+                    break
+    def command_listener():
+        """Listen for grab/ungrab commands from main process."""
+        while True:
+            try:
+                cmd = command_queue.get(block=True)
+                if cmd == 'grab':
+                    if not is_grabbed[0]:
+                        is_grabbed[0] = True
+                        grab_all_connected()
+                elif cmd == 'ungrab':
+                    if is_grabbed[0]:
+                        is_grabbed[0] = False
+                        ungrab_all_connected()
+            except OSError:
+                break
+
+    # Start command listener thread
+    Thread(target=command_listener, daemon=True).start()
 
     if _lib_udev:
         try:
@@ -155,15 +233,17 @@ def device_reader_worker(device_paths, event_queue):
 
 
 class AggregatedEventDevice:
-    def __init__(self, devices, output=None):
+    def __init__(self, devices, output=None, virtual_name=None):
         self.event_queue = Queue()
+        self.command_queue = Queue()  # For sending grab/ungrab commands
 
         self.output = output  # stays in parent only
+        self.grabbed = False
         paths = [d.path for d in devices]
 
         self.process = Process(
             target=device_reader_worker,
-            args=(paths, self.event_queue),
+            args=(paths, self.event_queue, self.command_queue, virtual_name),
             daemon=True,
         )
         self.process.start()
@@ -174,6 +254,18 @@ class AggregatedEventDevice:
 
     def write_event(self, type, code, value):
         self.output.write_event(type, code, value)
+
+    def grab(self):
+        """Grab exclusive access to all keyboards except the virtual one."""
+        if not self.grabbed:
+            self.grabbed = True
+            self.command_queue.put('grab')
+
+    def ungrab(self):
+        """Release exclusive access to keyboards."""
+        if self.grabbed:
+            self.grabbed = False
+            self.command_queue.put('ungrab')
 
 
 device_pattern = r"""N: Name="([^"]+?)".+?H: Handlers=([^\n]+)"""
@@ -223,7 +315,7 @@ def aggregate_devices(type_name, name: str):
 
     devices_from_proc = list(list_devices_from_proc(type_name))
     if devices_from_proc:
-        return AggregatedEventDevice(devices_from_proc, output=fake_device)
+        return AggregatedEventDevice(devices_from_proc, output=fake_device, virtual_name=name)
 
     # breaks on mouse for virtualbox
     # was getting /dev/input/by-id/usb-VirtualBox_USB_Tablet-event-mouse
@@ -231,7 +323,7 @@ def aggregate_devices(type_name, name: str):
         list_devices_from_by_id(type_name, by_id=False)
     )
     if devices_from_by_id:
-        return AggregatedEventDevice(devices_from_by_id, output=fake_device)
+        return AggregatedEventDevice(devices_from_by_id, output=fake_device, virtual_name=name)
 
     # If no keyboards were found we can only use the fake device to send keys.
     assert fake_device

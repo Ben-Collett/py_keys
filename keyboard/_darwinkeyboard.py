@@ -525,3 +525,10 @@ def type_unicode(character):
         event, len(character.encode("utf-16-le")) // 2, character
     )
     Quartz.CGEventPost(Quartz.kCGSessionEventTap, event)
+
+def grab():
+    raise NotImplementedError("grab is not implemented for macos/darwin only the linux evdev backend")
+def ungrab():
+    raise NotImplementedError("ungrab is not implemented for macos/darwin only the linux evdev backend")
+def is_grabbed()->bool:
+    return False

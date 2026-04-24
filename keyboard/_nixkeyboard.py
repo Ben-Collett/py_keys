@@ -6,7 +6,7 @@ from subprocess import check_output, CalledProcessError
 from ._global_data import global_data
 from ._keyboard_event import KeyboardEvent, KEY_DOWN, KEY_UP
 from ._canonical_names import all_modifiers, normalize_name
-from ._nixcommon import EV_KEY, aggregate_devices
+from ._nixcommon import EV_KEY, aggregate_devices, AggregatedEventDevice
 
 # TODO: start by reading current keyboard state, as to not missing any already pressed keys.
 # See: http://stackoverflow.com/questions/3649874/how-to-get-keyboard-state-in-linux
@@ -159,14 +159,14 @@ def build_tables():
             from_name[synonym].extend(from_name[original])
 
 
-device = None
+_device = None
 
 
 def build_device(name: str):
-    global device
-    if device:
+    global _device
+    if _device:
         return
-    device = aggregate_devices("kbd", name)
+    _device = aggregate_devices("kbd", name)
 
 
 _down_keys = None
@@ -179,6 +179,29 @@ def init():
     _down_keys = dict()
 
 
+def grab():
+    """Grab exclusive access to all physical keyboards."""
+    global _device
+    if _device is None:
+        build_device(global_data.device_name)
+    if isinstance(_device, AggregatedEventDevice):
+        _device.grab()
+
+
+def ungrab():
+    """Release exclusive access to all physical keyboards."""
+    global _device
+    if isinstance(_device, AggregatedEventDevice):
+        return _device.ungrab()
+    return False
+
+
+def is_grabbed()->bool:
+    """Release exclusive access to all physical keyboards."""
+    global _device
+    if isinstance(_device, AggregatedEventDevice):
+        return _device.grabbed
+    return False
 pressed_modifiers = set()
 _keys_cond = Condition()
 
@@ -188,7 +211,7 @@ def listen(callback):
     build_tables()
 
     while True:
-        time, type, code, value, device_path, device_name = device.read_event()
+        time, type, code, value, device_path, device_name = _device.read_event()
 
         if type != EV_KEY:
             continue
@@ -249,7 +272,7 @@ def _write_event(scan_code, is_down, name: str, should_be_shifted: bool = False)
             # so when writing Dhello it will wait for shift to be released before it starts uncessarly
             while scan_code in _down_keys or (not should_be_shifted and _shift_changes(scan_code) and "shift" in pressed_modifiers):
                 _keys_cond.wait()
-    device.write_event(EV_KEY, scan_code, int(is_down))
+    _device.write_event(EV_KEY, scan_code, int(is_down))
 
 
 def map_name(name):

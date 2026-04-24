@@ -734,6 +734,14 @@ def release(code, shiftpressed: bool = False, notify=True):
         _inject(code, KEY_UP)
 
 
+def grab():
+    raise NotImplementedError("grab is not implemneted on windows it's only implemented on the Linux evdev backend")
+def ungrab():
+    raise NotImplementedError("ungrab is not implemneted on windows it's only implemented on the Linux evdev backend")
+def is_grabbed()->bool:
+    return False
+
+
 def type_unicode(character, notify=True):
     surrogates = bytearray(character.encode("utf-16le"))
     presses = []

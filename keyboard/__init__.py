@@ -18,6 +18,8 @@ import collections as _collections
 import itertools as _itertools
 import re as _re
 
+
+
 """
 keyboard
 ========
@@ -224,6 +226,17 @@ def _is_str(x):
 
 def _is_number(x):
     return isinstance(x, int)
+
+
+def _unsafe_propagate(event:KeyboardEvent):
+    key = event.scan_code 
+    if key is None:
+        key = event.name
+
+    if event.event_type == KEY_DOWN:
+        press(key)
+    else:
+        release(key)
 
 
 def _is_list(x):
@@ -451,6 +464,7 @@ def init(
     linux_collision_safety_mode=None,
     windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
     keyboard_mode=None,
+    auto_grab= True,
     device_name: str = "PyKeys Virtual Keyboard",
 ):
     global _os_keyboard, _listener, _initialized, _keyboard_mode, _device_name
@@ -494,6 +508,8 @@ def init(
 
     if linux_collision_safety_mode == LinuxCollisionSafetyModes.PATIENT:
         _patient_collision_safe_mode()
+    if auto_grab and _keyboard_mode == KeyboardModes.LINUX:
+        grab()
 
     _listener = _KeyboardListener()
     _initialized = True
@@ -1487,8 +1503,7 @@ def play(events, speed_factor=1.0):
             _time.sleep((event.time - last_time) / speed_factor)
         last_time = event.time
 
-        key = event.scan_code or event.name
-        press(key) if event.event_type == KEY_DOWN else release(key)
+        _unsafe_propagate(event)
 
     restore_modifiers(state)
 
@@ -1601,6 +1616,63 @@ def add_abbreviation(source_text, replacement_text, match_suffix=False, timeout=
     )
 
 
+
+
+def grab():
+    """
+    Grab exclusive access to all keyboards except the one created by the program.
+
+    This method is only supported on the evdev (Linux) backend. On other backends,
+    it raises NotImplementedError.
+
+    When grabbed, all physical keyboards are exclusively captured, meaning other
+    applications will not receive key events from those keyboards. The virtual
+    keyboard created by this program is not grabbed. New keyboards added while
+    grabbed will be automatically grabbed.
+
+    All key events are still sent to registered hook methods.
+
+    Calling grab() multiple times without calling ungrab() has no effect.
+    """
+    os_keyboard = _get_os_keyboard()
+    if os_keyboard:
+        os_keyboard.grab()
+
+
+def ungrab():
+    """
+    Release exclusive access to keyboards previously grabbed with grab().
+
+    This method is only supported on the evdev (Linux) backend. On other backends,
+    it raises NotImplementedError.
+
+    If grab() has not been called, this method does nothing.
+
+    Calling ungrab() multiple times has no effect.
+    """
+    os_keyboard = _get_os_keyboard()
+
+    if os_keyboard:
+        os_keyboard.ungrab()
+
+def is_grabbed():
+    os_keyboard = _get_os_keyboard()
+    if os_keyboard:
+        return os_keyboard.is_grabbed()
+    return False
+def propagate(key_event:KeyboardEvent):
+    """
+    propagates any key event if the device is not grabbed
+    and the event is not from the virtual keyboard
+    meant to be used inside the hook function when the keyboard is grabbed
+      pass
+    """
+    if not is_grabbed() or key_event.device == _global_data.device_name:
+        return
+
+    _unsafe_propagate(key_event)
+
+
 # Aliases.
 register_word_listener = add_word_listener
 register_abbreviation = add_abbreviation
@@ -1610,3 +1682,4 @@ unremap_hotkey = remove_hotkey
 unhook_key = unhook
 unblock_key = unhook_key
 unremap_key = unhook_key
+

@@ -196,3 +196,10 @@ def listen(callback):
         x.listen(wrapper, controls_changed_callback=on_controls_changed)
     finally:
         pass
+
+def grab():
+    raise NotImplementedError("grab is not implemented for x11 only the linux evdev backend")
+def ungrab():
+    raise NotImplementedError("ungrab is not implemented for x11 only the linux evdev backend")
+def is_grabbed()->bool:
+    return False
