@@ -464,7 +464,7 @@ def init(
     linux_collision_safety_mode=None,
     windows_synetic_mode: WindowsSyntheticModes = WindowsSyntheticModes.FAKE,
     keyboard_mode=None,
-    auto_grab= True,
+    auto_grab= False,
     device_name: str = "PyKeys Virtual Keyboard",
 ):
     global _os_keyboard, _listener, _initialized, _keyboard_mode, _device_name
