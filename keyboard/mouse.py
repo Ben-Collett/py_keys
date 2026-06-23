@@ -1,13 +1,4 @@
 # -*- coding: utf-8 -*-
-import warnings
-
-warnings.simplefilter("always", DeprecationWarning)
-warnings.warn(
-    "The mouse sub-library is deprecated and will be removed in future versions. Please use the standalone package `mouse`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 import time as _time
 
 import platform as _platform
@@ -198,7 +189,7 @@ def wait(button=LEFT, target_types=(UP, DOWN, DOUBLE)):
     _listener.remove_handler(handler)
 
 
-def get_position():
+def get_position() -> tuple[int, int]:
     """Returns the (x, y) mouse position."""
     return _os_mouse.get_position()
 
